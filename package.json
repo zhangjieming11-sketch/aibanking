@@ -1,0 +1,12 @@
+{
+  "name": "agent-bank",
+  "version": "2.0.0",
+  "description": "AgentBank - 智能体银行安全演示系统（参赛作品 V2）",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

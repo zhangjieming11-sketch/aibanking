@@ -1,0 +1,5 @@
+{
+  "baseURL": "https://<你的接入点>.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+  "apiKey": "sk-在这里填入你的 API Key",
+  "model": "qwen-plus"
+}

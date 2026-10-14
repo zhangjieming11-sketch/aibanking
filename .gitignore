@@ -1,0 +1,16 @@
+# 运行时数据（含演示产生的转账/审批记录，不应入库）
+data/db.json
+data/db.json.tmp
+
+# 【重要】含真实 API Key，绝不提交
+data/llm-config.json
+
+# 依赖与系统文件
+node_modules/
+.DS_Store
+Thumbs.db
+*.log
+
+# 编辑器
+.vscode/
+.idea/
