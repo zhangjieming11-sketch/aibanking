@@ -1,6 +1,7 @@
 # 运行时数据（含演示产生的转账/审批记录，不应入库）
 data/db.json
 data/db.json.tmp
+data/db.json.bak
 
 # 【重要】含真实 API Key，绝不提交
 data/llm-config.json

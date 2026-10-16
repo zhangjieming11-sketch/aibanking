@@ -4,7 +4,9 @@
   "description": "AgentBank - 智能体银行安全演示系统（参赛作品 V2）",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node tests/run_attacks.js",
+    "test:smoke": "node tests/smoke.js"
   },
   "engines": {
     "node": ">=18"

@@ -7,7 +7,7 @@ function renderLogin(mode) {
   <div class="login-wrap">
     <div class="login-box">
       <h1>🛡️ AgentBank</h1>
-      <div class="sub">智能体银行 · 安全防护演示系统 V2</div>
+      <div class="sub">智能体银行 · 安全防护演示系统 V2<br><span style="color:#94a3b8">看得见的防护：注入拦截 · 授权签名 · 审计哈希链</span></div>
       ${mode === 'register' ? `
       <form onsubmit="doRegister(event)">
         <div class="field"><label>手机号</label><input id="r-phone" placeholder="11 位手机号" maxlength="11"></div>
@@ -54,6 +54,7 @@ function renderShell(contentHTML) {
     </div>
     <div class="main ${S.collapsed ? 'expanded' : ''}">${contentHTML}</div>
   </div>
+  <button class="tour-launch" onclick="startTour()">▶ 90 秒安全导览</button>
   <div class="sms-panel ${S.smsOpen ? 'open' : ''}" id="smsPanel"></div>`;
   renderSMS();
   // 大模型状态徽标：LLM 模式 / 规则引擎模式
@@ -76,13 +77,14 @@ function renderSMS() {
 // ================= 首页：Agent 聊天 =================
 function renderHome(overview) {
   const msgs = S.chat.map(m => m.approval ? renderApprovalCard(m) :
-    `<div class="msg ${m.role === 'user' ? 'user' : m.blocked ? 'bot blocked' : 'bot'}">
+    m.blocked ? renderBlockedCard(m) :
+    `<div class="msg ${m.role === 'user' ? 'user' : 'bot'}">
       <div class="avatar">${m.role === 'user' ? '😀' : '🤖'}</div>
       <div class="bubble">${esc(m.text)}</div>
     </div>`).join('');
   renderShell(`
     <div class="page-title">智能助手</div>
-    <div class="page-sub">Agent 只能「申请」操作，无权直接动用资金 —— 所有 P2 资金操作需你双重验证，P3 高危操作 Agent 永久无权限</div>
+    <div class="page-sub">Agent 只能「申请」，不能动钱 —— 它看不到你的密码、碰不到你的验证码，所有 P2 资金操作都得你本人双重验证；P3 高危操作它永久无权。</div>
     <div class="card chat-box">
       <div style="display:flex;justify-content:space-between;padding:14px 16px 0;align-items:center">
         <div><b>${esc(S.user.name)}</b> <span class="muted">余额 ${yuan(overview.balance)} · 风险等级 ${S.user.riskLevel || '未测评'}</span> <span id="llmBadge" class="tag tag-gray">…</span></div>
@@ -105,13 +107,29 @@ function renderHome(overview) {
   const box = $('#chatMsgs'); if (box) box.scrollTop = box.scrollHeight;
 }
 
+// 红色拦截卡：三要素 —— ① 什么攻击 ② 被哪一层拦 ③ 证据编号
+function renderBlockedCard(m) {
+  const attack = m.attackType || '提示词注入 / 越权操作';
+  const layer = m.layer || '数据隔离层';
+  const ref = m.ref || (m.auditId ? '#' + m.auditId : '—');
+  return `<div class="blocked-card">
+    <div class="bhead">🚫 攻击已拦截 <span class="btype">${esc(attack)}</span></div>
+    <div class="blocked-facts">
+      <div class="row"><span>什么攻击</span><span>${esc(attack)}</span></div>
+      <div class="row"><span>被谁拦截</span><span class="layer-tag">${esc(layer)}</span></div>
+      <div class="row"><span>证据编号</span><span class="audit-ref">${esc(ref)}</span></div>
+    </div>
+    <div class="btext">${esc(m.text)}</div>
+  </div>`;
+}
+
 function renderApprovalCard(m) {
   const ap = m.approval;
   return `<div class="approval-card">
     <div class="head">🔐 操作确认卡片 <span class="tag ${ap.level >= 2 ? 'tag-red' : 'tag-orange'}">P${ap.level} ${ap.level >= 2 ? '资金操作·需双重验证' : '低敏操作'}</span></div>
     <div class="summary">
       ${summaryRows(ap)}
-      <div class="muted" style="float:none">授权单号 ${esc(ap.id.slice(0, 8))}… · ${ap.expiresAt ? '有效期至 ' + fmtT(ap.expiresAt) : ''}</div>
+      <div class="muted" style="float:none">授权单号 ${esc(ap.id.slice(0, 8))}… ${ap.fingerprint ? `· 参数签名 <b style="color:var(--primary)">${esc(ap.fingerprint)}</b>` : ''} · ${ap.expiresAt ? '有效期至 ' + fmtT(ap.expiresAt) : ''}</div>
     </div>
     ${ap.needSms ? `<div class="cred"><input id="ap-pass-${ap.id}" type="password" maxlength="6" placeholder="支付密码"><input id="ap-sms-${ap.id}" maxlength="6" placeholder="短信验证码"></div>` : ''}
     <div class="note">⚠️ 请核对上方操作摘要（由权限网关生成，非 Agent 话术）。确认仅授权本单，验证通过后单据即刻作废，不可复用。</div>
@@ -143,7 +161,8 @@ async function sendChat(text) {
   render();
   const r = await api('/api/agent/chat', 'POST', { message: msg });
   if (!r.ok) { toast(r.message, 'err'); return; }
-  S.chat.push({ role: 'bot', text: r.text, blocked: r.type === 'blocked', approval: r.approval });
+  S.chat.push({ role: 'bot', text: r.text, blocked: r.type === 'blocked', approval: r.approval,
+    layer: r.layer, attackType: r.attackType, ref: r.ref, auditId: r.auditId });
   if (r.approval) refreshSMS();
   render();
 }
@@ -158,7 +177,8 @@ async function confirmApproval(id, needSms) {
   // 更新对应卡片为结果
   const idx = S.chat.findIndex(m => m.approval && m.approval.id === id);
   if (idx >= 0) {
-    S.chat[idx] = { role: 'bot', text: (r.ok ? '✅ ' : '❌ ') + r.message, blocked: !r.ok };
+    S.chat[idx] = { role: 'bot', text: (r.ok ? '✅ ' : '❌ ') + r.message, blocked: !r.ok,
+      layer: r.layer, attackType: r.blocked ? '授权单校验拦截' : null, ref: r.ref, auditId: r.auditId };
   }
   toast(r.message, r.ok ? 'ok' : 'err');
   render(); refreshSMS();
@@ -172,7 +192,8 @@ async function attackTest() {
   const r = await api('/api/attack/test', 'POST');
   if (r.ok) {
     S.chat.push({ role: 'user', text: r.attackText });
-    S.chat.push({ role: 'bot', text: r.result.text, blocked: true });
+    S.chat.push({ role: 'bot', text: r.result.text, blocked: true,
+      layer: r.result.layer, attackType: r.result.attackType, ref: r.result.ref, auditId: r.result.auditId });
     render(); refreshSMS();
   }
 }
@@ -292,10 +313,22 @@ async function renderTransfer() {
         </div>`).join('') || '<div class="muted" style="padding:16px">暂无 AA 活动。发起后可登录第二账户（13800000002）体验"每人独立验证"。</div>'}
       </div>
     </div>
-    <div class="card" style="margin-top:16px"><b>💸 转账记录</b>
-      <table class="table" style="margin-top:8px"><tr><th>时间</th><th>收款人</th><th>金额</th><th>类型</th><th>执行方</th></tr>
-      ${transfers.list.map(t => `<tr><td>${fmtT(t.createdAt)}</td><td>${esc(t.toName)}</td><td>${yuan(t.amount)}</td><td>${ { normal: '普通', scheduled: '定时', aa: 'AA' }[t.type] || t.type}</td><td>${t.executedBy === 'scheduler' ? '🤖 持续授权自动' : '👤 用户验证'}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">暂无记录</td></tr>'}
+    <div class="card" style="margin-top:16px"><b>💸 转账记录</b> <span class="muted">大额（≥ ${yuan(transfers.largeThreshold)}）享 ${transfers.windowSec}s 撤销窗口 · 同一授权单重复提交只扣款一次（幂等）</span>
+      <table class="table" style="margin-top:8px"><tr><th>时间</th><th>收款人</th><th>金额</th><th>类型</th><th>执行方</th><th>状态</th><th></th></tr>
+      ${transfers.list.map(t => `<tr>
+        <td>${fmtT(t.createdAt)}</td><td>${esc(t.toName)}</td>
+        <td style="${t.amount >= transfers.largeThreshold ? 'color:var(--danger);font-weight:700' : ''}">${yuan(t.amount)}</td>
+        <td>${ { normal: '普通', scheduled: '定时', aa: 'AA' }[t.type] || t.type}</td>
+        <td>${t.executedBy === 'scheduler' ? '🤖 持续授权自动' : '👤 用户验证'}</td>
+        <td>${t.revoked ? '<span class="tag tag-gray">已撤销</span>' : t.revocableUntil && t.revokeWindowSec > 0 ? `<span class="tag tag-orange">可撤销 ${t.revokeWindowSec}s</span>` : '<span class="tag tag-green">已到账</span>'}</td>
+        <td>${!t.revoked && t.revocableUntil && t.revokeWindowSec > 0 ? `<button class="btn btn-danger btn-sm" onclick="revokeTransfer('${t.id}')">撤销</button>` : ''}</td>
+      </tr>`).join('') || '<tr><td colspan="7" class="muted">暂无记录</td></tr>'}
       </table></div>`);
+}
+async function revokeTransfer(id) {
+  const r = await api('/api/transfers/' + id + '/revoke', 'POST');
+  toast(r.message, r.ok ? 'ok' : 'err');
+  render();
 }
 async function tickScheduler() { const r = await api('/api/scheduler/tick', 'POST'); toast(r.fired && r.fired.length ? r.fired.map(f => (f.ok ? '✅' : '⏸️') + f.message + (f.reason || '')).join('；') : '当前没有到期任务', r.fired && r.fired.length ? 'ok' : ''); render(); }
 // UI 发起操作：与 Agent 同样必须走授权单
@@ -436,12 +469,31 @@ async function doRemoveCard(cardId) {
   render();
 }
 
-// ================= 安全中心 =================
+// ================= 安全中心（安全驾驶舱）=================
 async function renderSecurity() {
-  const d = await api('/api/security/overview');
+  const [d, ck] = await Promise.all([api('/api/security/overview'), api('/api/security/cockpit')]);
   renderShell(`
     <div class="page-title">安全中心</div>
-    <div class="page-sub">Agent 权限矩阵 · 持续性授权管理 · 限额 · 全链路审计日志</div>
+    <div class="page-sub">看得见的防护 —— 攻击用例、实时拦截、审计链完整性，全部是真实数字，不是贴图。</div>
+
+    <div class="cockpit">
+      <div class="cockpit-head">
+        <span style="font-size:20px">🛡️</span><h2>安全驾驶舱</h2>
+        <span class="live"><span class="dot"></span>实时</span>
+      </div>
+      <div class="cockpit-grid">
+        <div class="cockpit-stat good"><div class="k">注入攻击用例通过</div><div class="v">${ck.attackPass}<small> / ${ck.attackTotal}</small></div><div class="s" style="color:#4ade80">数据隔离层门禁全绿</div></div>
+        <div class="cockpit-stat ${ck.blockedToday > 0 ? 'bad' : ''}"><div class="k">今日拦截</div><div class="v">${ck.blockedToday}<small> 次</small></div><div class="s" style="color:#94a3b8">注入 / 越权 / 篡改合计</div></div>
+        <div class="cockpit-stat ${ck.chainOk ? 'good' : 'bad'}"><div class="k">审计链完整性</div><div class="v">${ck.chainOk ? '✓ 完整' : '✗ 断裂'}</div><div class="s" style="color:${ck.chainOk ? '#4ade80' : '#f87171'}">${ck.chainCount} 条已校验</div></div>
+        <div class="cockpit-stat"><div class="k">大额撤销窗口</div><div class="v">${ck.revokeWindowSec}<small> 秒</small></div><div class="s" style="color:#94a3b8">≥ ${yuan(ck.largeThreshold)} 自动开启</div></div>
+      </div>
+      <div class="cockpit-chain">
+        <span>🔗 审计哈希链链尾：</span><code>${esc(ck.chainHead || 'GENESIS')}</code>
+        <span>· 每条含 HMAC(前一条哈希 | 本条内容)，篡改任意一条即校验失败</span>
+        <button class="btn btn-outline btn-sm" style="margin-left:auto" onclick="verifyChain()">校验完整性</button>
+      </div>
+    </div>
+
     <div class="grid grid-2">
       <div class="card"><b>🛡️ Agent 权限矩阵（P0-P3）</b><div class="muted" style="margin:6px 0 10px">硬编码策略表，LLM 无法修改</div>
         ${[0, 1, 2, 3].map(lv => `<div style="margin-bottom:8px">
@@ -473,18 +525,61 @@ async function renderSecurity() {
         </div>
       </div>
     </div>
-    <div class="card" style="margin-top:16px"><b>📜 审计日志（全链路）</b> <button class="btn btn-outline btn-sm" style="float:right" onclick="render()">刷新</button>
+    <div class="card" style="margin-top:16px"><b>📜 审计日志（全链路 · 哈希链）</b> <button class="btn btn-outline btn-sm" style="float:right" onclick="render()">刷新</button>
       <div style="margin-top:10px;max-height:420px;overflow-y:auto">
       ${d.audit.map(l => `<div class="audit-item ${l.result}">
         <span class="t">${fmtT(l.t)}</span> <span class="tag tag-gray">${esc(l.actor)}</span>
         <b>${esc(l.action)}</b> <span class="tag ${l.result === 'OK' || l.result === 'APPROVED' || l.result === 'CREATED' ? 'tag-green' : 'tag-red'}">${l.result}</span>
+        ${l.layer ? `<span class="tag tag-orange">${esc(l.layer)}</span>` : ''}
+        <span class="audit-ref">#${esc(l.ref || '')}</span> <span class="muted" title="${esc(l.hash || '')}">链 ${esc((l.hash || '').slice(0, 8))}</span>
         <div class="muted">${esc(l.note || '')}</div>
       </div>`).join('') || '<div class="muted">暂无日志</div>'}
       </div></div>`);
 }
+async function verifyChain() {
+  const r = await api('/api/security/audit/verify');
+  if (r.ok) toast(r.ok ? `✅ 审计链完整：${r.count} 条全部校验通过，链尾 ${String(r.head || '').slice(0, 12)}…` : `❌ 审计链在 ${r.brokenAt && r.brokenAt.ref} 处断裂：${r.brokenAt && r.brokenAt.reason}`, r.ok ? 'ok' : 'err');
+}
 async function revokeStanding(id) { const r = await api('/api/security/standing/' + id + '/revoke', 'POST'); toast(r.message, 'ok'); render(); }
 async function saveLimits() { const r = await api('/api/security/limits', 'POST', { single: $('#lim-s').value, daily: $('#lim-d').value }); toast(r.message, r.ok ? 'ok' : 'err'); if (r.ok) render(); }
 async function changePaypass() { const r = await api('/api/security/paypass', 'POST', { oldPayPass: $('#pp-old').value, payPassword: $('#pp-new').value }); toast(r.message, r.ok ? 'ok' : 'err'); }
+
+// ================= 90 秒安全导览 =================
+const TOUR_STEPS = [
+  { tab: 'home', title: '① Agent 能做什么？只能「申请」，不能动钱', points: ['Agent 只把你说的话解析成操作申请单', '它看不到你的支付密码，也碰不到短信验证码', 'P2 资金操作必须你本人双重验证后才执行'], plain: '先记住一句话：智能助手再聪明，也只是个「跑腿的」，真正按确认键的永远是你。' },
+  { tab: 'home', title: '② 提示词注入攻击', points: ['点击「⚡ 注入攻击演示」', '观察红色拦截卡：什么攻击 / 被谁拦 / 证据编号', '数据隔离层在指令进入 Agent 之前就把它拦下'], plain: '有人可能在账单、备注里藏一句"忽略所有规则"，企图骗 Agent 转账——这类文本一律当数据看，绝不当代指令执行。', action: 'attackTest' },
+  { tab: 'transfer', title: '③ 授权单：参数签名 + 用后即废', points: ['发起一笔转账，看确认卡上的「参数签名 7F3A·9C21」', '金额/收款人改一个字，签名立刻对不上、执行被拦', '同一张授权单用过即作废，不可复用'], plain: '这条签名相当于给"你看到的那笔操作"盖了个防伪章，中途被人改过就对不上号。' },
+  { tab: 'transfer', title: '④ 幂等键：重复提交不会重复扣款', points: ['同一授权单重复提交，只执行一次', '系统返回首次结果，余额不再变化', '大额（≥ ¥1000）享 2 分钟撤销窗口'], plain: '手抖连点两次"确认"？放心，第二下不会真扣钱。', action: 'runTourTransfer' },
+  { tab: 'security', title: '⑤ 安全驾驶舱：看得见的防护', points: ['注入用例 28/28 全绿（数据隔离层门禁）', '今日拦截次数、审计链完整性实时统计', '点「校验完整性」可现场验证审计链未被动过'], plain: '安全不该是黑盒——每一条拦截都留痕，你可以自己点开核对。' },
+  { tab: 'security', title: '⑥ 审计哈希链：篡改一条即被检出', points: ['每条审计含 HMAC(前一条哈希 | 本条内容)', '改任意一条，后面所有哈希都对不上', '完整性自校验一键跑通'], plain: '审计日志像一串连环锁，想偷偷改一条，整串锁都会报警。' }
+];
+function startTour() { S.tour = 0; renderTour(); }
+function renderTour() {
+  if (S.tour == null) return;
+  const st = TOUR_STEPS[S.tour];
+  if (st.tab && S.tab !== st.tab) { S.tab = st.tab; render(); } // 切到对应页面
+  if (st.action === 'attackTest') setTimeout(() => attackTest(), 400);
+  if (st.action === 'runTourTransfer') setTimeout(() => requestOps('transfer.execute', { toName: '小红', amount: '2000' }), 500);
+  const mask = document.createElement('div'); mask.className = 'tour-mask'; mask.id = 'tourMask';
+  mask.onclick = e => { if (e.target === mask) endTour(); };
+  mask.innerHTML = `<div class="tour-box">
+    <div class="step-no">STEP ${S.tour + 1} / ${TOUR_STEPS.length} · 90 秒安全导览</div>
+    <h3>${st.title}</h3>
+    <p>${st.plain}</p>
+    <div class="tour-points">${st.points.map(p => '· ' + p).join('<br>')}</div>
+    <div class="tour-actions">
+      <button class="btn btn-outline btn-sm" onclick="endTour()">退出导览</button>
+      ${S.tour > 0 ? '<button class="btn btn-outline btn-sm" onclick="tourPrev()">上一步</button>' : ''}
+      <button class="btn btn-primary btn-sm" onclick="tourNext()">${S.tour === TOUR_STEPS.length - 1 ? '完成 ✓' : '下一步 →'}</button>
+      <span class="tour-dots">${TOUR_STEPS.map((_, i) => `<i class="${i === S.tour ? 'on' : ''}"></i>`).join('')}</span>
+    </div>
+  </div>`;
+  document.querySelectorAll('.tour-mask').forEach(m => m.remove());
+  document.body.appendChild(mask);
+}
+function tourNext() { if (S.tour >= TOUR_STEPS.length - 1) return endTour(); S.tour++; renderTour(); }
+function tourPrev() { if (S.tour > 0) { S.tour--; renderTour(); } }
+function endTour() { S.tour = null; document.querySelectorAll('.tour-mask').forEach(m => m.remove()); }
 
 // ================= 入口 =================
 async function boot() {
