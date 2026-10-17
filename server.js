@@ -155,7 +155,9 @@ route('POST', '/api/agent/chat', async (req, res, body) => {
 // ---------- 授权单确认（唯一资金执行入口）----------
 route('POST', '/api/approvals/:id/confirm', async (req, res, body, params) => {
   const u = needAuth(req, res); if (!u) return;
-  const result = gateway.confirmAndExecute(u, params.id, body);
+  // confirmAndExecute 为异步函数（内部走并发互斥锁），必须 await，
+  // 否则 result 是 Promise，JSON 序列化后变成 {} —— 前端将收不到任何结果。
+  const result = await gateway.confirmAndExecute(u, params.id, body);
   json(res, 200, result);
 });
 
@@ -407,7 +409,7 @@ route('POST', '/api/attack/test', async (req, res) => {
 // ---------- 调度器 ----------
 route('POST', '/api/scheduler/tick', async (req, res) => {
   needAuth(req, res); if (res.writableEnded) return;
-  const fired = banking.schedulerTick(true); // 手动触发：演示时立即执行生效中的任务
+  const fired = await banking.schedulerTick(true); // 手动触发：演示时立即执行生效中的任务
   json(res, 200, { ok: true, fired });
 });
 
@@ -440,7 +442,8 @@ const server = http.createServer(async (req, res) => {
 });
 
 // 定时器：每 15 秒检查到期的定时转账（逐笔校验持续性授权）
-setInterval(() => { try { banking.schedulerTick(); } catch (e) { console.error(e); } }, 15000);
+// schedulerTick 为异步（并发互斥锁），需用 .catch 捕获 Promise 内异常
+setInterval(() => { banking.schedulerTick().catch(e => console.error('调度异常：' + e.message)); }, 15000);
 
 server.listen(PORT, () => {
   console.log('');
@@ -448,6 +451,8 @@ server.listen(PORT, () => {
   console.log('  ║   AgentBank 智能体银行安全演示系统 V2         ║');
   console.log('  ╚══════════════════════════════════════════════╝');
   console.log(`  ➜  http://localhost:${PORT}`);
+  // 注意：支付密码必须与 lib/store.js seed() 中的 DEMO 支付密码保持一致。
+  // 用户若在安全中心改过支付密码或执行过「演示重置」，以页面实际提示为准。
   console.log('  ➜  演示账户：13800000001 / demo1234（支付密码 123456）');
   console.log('  ➜  第二账户：13800000002 / demo1234（AA 演示用）');
   console.log('');
