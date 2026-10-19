@@ -9,22 +9,45 @@ const { hashPassword, verifyPassword, signToken, verifyToken, uid, yuan, maskCar
 const gateway = require('./lib/gateway');
 const agent = require('./lib/agent');
 const banking = require('./lib/banking');
+const limits = require('./lib/limits');
+const contacts = require('./lib/contacts');
 
 store.load();
 const PORT = process.env.PORT || 3000;
+
+// ---------------- 安全响应头（U-36）----------------
+// X-Frame-Options / frame-ancestors 防点击劫持；nosniff 防 MIME 嗅探；
+// CSP 收紧脚本来源，禁止内联脚本执行（因此 index.html 的内联脚本已拆到 public/boot.js）。
+const SEC_HEADERS = {
+  'X-Frame-Options': 'DENY',
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'no-referrer',
+  'Content-Security-Policy': "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+  'Cache-Control': 'no-store'
+};
 
 // ---------------- 工具 ----------------
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let data = '';
-    req.on('data', c => { data += c; if (data.length > 1e6) req.destroy(); });
-    req.on('end', () => { try { resolve(data ? JSON.parse(data) : {}); } catch (e) { resolve({}); } });
+    let tooLarge = false;
+    req.on('data', c => {
+      if (tooLarge) return;
+      data += c;
+      // 超过 2MB 就停止累积，但仍把请求读完 —— 否则直接 destroy 会断连接，客户端只看到 ECONNRESET，
+      // 拿不到我们想返回的 413。真正的业务上限（1MB）在路由里判断。
+      if (data.length > 2 * 1024 * 1024) { tooLarge = true; data = ''; }
+    });
+    req.on('end', () => {
+      if (tooLarge) return resolve({ __tooLarge: true });
+      try { resolve(data ? JSON.parse(data) : {}); } catch (e) { resolve({}); }
+    });
     req.on('error', reject);
   });
 }
 function json(res, code, obj) {
   const body = JSON.stringify(obj);
-  res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Content-Length': Buffer.byteLength(body) });
+  res.writeHead(code, { ...SEC_HEADERS, 'Content-Type': 'application/json; charset=utf-8', 'Content-Length': Buffer.byteLength(body) });
   res.end(body);
 }
 // 兼容平台网关：网关会注入自己的 Authorization 头覆盖用户令牌，因此 X-Token 优先
@@ -50,8 +73,8 @@ function serveStatic(req, res, urlPath) {
   const file = path.join(__dirname, 'public', path.normalize(p).replace(/^([/\\])+/, ''));
   if (!file.startsWith(path.join(__dirname, 'public'))) { res.writeHead(403); res.end(); return; }
   fs.readFile(file, (err, data) => {
-    if (err) { res.writeHead(404); res.end('Not Found'); return; }
-    res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream' });
+    if (err) { res.writeHead(404, SEC_HEADERS); res.end('Not Found'); return; }
+    res.writeHead(200, { ...SEC_HEADERS, 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream' });
     res.end(data);
   });
 }
@@ -90,6 +113,8 @@ route('POST', '/api/auth/register', async (req, res, body) => {
   db.users.push(user);
   db.accounts.push({ userId: user.id, balance: 1000000 }); // 新户送 ¥10,000 演示金
   db.cards.push({ id: 'c' + uid().slice(0, 6), userId: user.id, name: '默认储蓄卡', number: '6222' + String(Math.floor(Math.random() * 1e12)).padStart(12, '0'), frozen: false, isDefault: true });
+  // 新用户同样预置演示通讯录，否则收款人解析层会把所有转账都判为「无法解析」
+  db.contacts.push(...contacts.seedFor(user.id));
   gateway.audit(user.id, 'user', 'auth.register', { phone: maskPhone(phone) }, 'OK', '新用户注册（赠送演示金 ¥10,000.00）');
   store.save();
   json(res, 200, { ok: true, message: '注册成功，请登录', next: '建议登录后先设置支付密码（安全中心）' });
@@ -97,11 +122,42 @@ route('POST', '/api/auth/register', async (req, res, body) => {
 
 route('POST', '/api/auth/login', async (req, res, body) => {
   const db = store.get();
-  const user = db.users.find(u => u.phone === String(body.phone || '').trim());
-  if (!user || !verifyPassword(body.password || '', user.passwordHash)) {
-    if (user) gateway.audit(user.id, 'user', 'auth.login', {}, 'REJECTED', '登录密码错误');
-    return json(res, 401, { ok: false, message: '手机号或密码错误' });
+  const phone = String(body.phone || '').trim();
+  const ip = String(req.socket.remoteAddress || 'unknown').replace(/^::ffff:/, '');
+
+  const user = db.users.find(u => u.phone === phone);
+  // 先校验密码：锁定后「密码正确仍放行」——既防爆破，又不给攻击者故意锁死他人账号的能力
+  const passOk = !!user && verifyPassword(body.password || '', user.passwordHash);
+
+  if (!passOk) {
+    // U-01 三维限速：账号 + IP + 渐进延迟
+    const gPhone = limits.guard('login', phone);
+    const gIp = limits.guard('loginIp', ip);
+    if (!gPhone.ok) {
+      if (user) gateway.audit(user.id, 'user', 'auth.login', {}, 'BLOCKED',
+        `登录已被限速：连续密码错误达上限，还需 ${gPhone.retryAfter} 秒`, gateway.LAYER.VERIFY);
+      return json(res, 429, { ok: false, retryAfter: gPhone.retryAfter, message: `密码错误次数过多，请 ${gPhone.retryAfter} 秒后再试` });
+    }
+    if (!gIp.ok) {
+      return json(res, 429, { ok: false, retryAfter: gIp.retryAfter, message: `该网络请求过于频繁，请 ${gIp.retryAfter} 秒后再试` });
+    }
+    const rp = limits.fail('login', phone);
+    limits.fail('loginIp', ip);
+    // 失败次数越多延迟越长（最多 1.2s），让爆破成本随次数上升
+    await new Promise(r => setTimeout(r, Math.min(rp.count, 10) * 120));
+    if (user) {
+      gateway.audit(user.id, 'user', 'auth.login', {}, 'REJECTED',
+        rp.locked
+          ? `登录密码连续错误达 ${rp.count} 次，账号已锁定 5 分钟`
+          : `登录密码错误（第 ${rp.count} 次，还可尝试 ${rp.remaining} 次）`,
+        rp.locked ? gateway.LAYER.VERIFY : null);
+      store.save();
+    }
+    return json(res, 401, { ok: false, message: '手机号或密码错误', remaining: rp.remaining });
   }
+
+  limits.reset('login', phone);
+  limits.reset('loginIp', ip);
   gateway.audit(user.id, 'user', 'auth.login', {}, 'OK', '登录成功（登录态仅授予 P0 只读权限）');
   store.save();
   json(res, 200, { ok: true, token: signToken({ uid: user.id, tv: user.tokenVersion }), user: { id: user.id, name: user.name, phone: maskPhone(user.phone), riskLevel: user.riskLevel, hasPayPass: !!user.payPasswordHash } });
@@ -152,6 +208,46 @@ route('POST', '/api/agent/chat', async (req, res, body) => {
   json(res, 200, { ok: true, ...result });
 });
 
+// ---------- SSE 流式对话（E3）----------
+// 与 /api/agent/chat 走同一个 agent.handleChat，只是把过程分阶段推给前端：
+// stage（阶段）→ result（结构化结果，含授权单/拦截卡）→ delta（逐段吐字）→ done。
+// 权限判定、审计、参数校验全部复用网关逻辑，流式只改变传输方式，不额外放宽任何规则。
+route('POST', '/api/agent/stream', async (req, res, body) => {
+  const u = needAuth(req, res); if (!u) return;
+  if (!body.message) return json(res, 400, { ok: false, message: '消息为空' });
+  res.writeHead(200, {
+    ...SEC_HEADERS,
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no'
+  });
+  let closed = false;
+  req.on('close', () => { closed = true; });
+  const send = (event, data) => {
+    if (closed || res.writableEnded) return false;
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    return true;
+  };
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  try {
+    send('stage', { phase: 'parse', label: '解析意图' });
+    const result = await agent.handleChat(u, body.message);
+    const blocked = result.type === 'blocked';
+    send('stage', { phase: 'policy', label: blocked ? `已在${result.layer || '网关'}拦截` : '策略校验通过' });
+    send('result', result);
+    // 按 12 字切片模拟逐字输出；前端若自行做打字机效果可忽略 delta
+    const text = String(result.text || '');
+    const chunks = text.match(/[^\n]{1,12}\n?/g) || (text ? [text] : []);
+    for (const c of chunks) { if (!send('delta', { text: c })) break; await sleep(10); }
+    send('done', { ok: true, blocked, at: Date.now() });
+  } catch (e) {
+    send('error', { message: '流式响应失败：' + e.message });
+  } finally {
+    if (!closed && !res.writableEnded) res.end();
+  }
+});
+
 // ---------- 授权单确认（唯一资金执行入口）----------
 route('POST', '/api/approvals/:id/confirm', async (req, res, body, params) => {
   const u = needAuth(req, res); if (!u) return;
@@ -172,9 +268,22 @@ route('GET', '/api/approvals', async (req, res) => {
 // ---------- 用户直接发起的操作（UI 按钮）也必须走授权单 ----------
 route('POST', '/api/ops/request', async (req, res, body) => {
   const u = needAuth(req, res); if (!u) return;
-  const { action, params } = body;
-  const result = gateway.createApproval(u, 'user', action, params || {});
-  if (result.blocked) return json(res, 403, { ok: false, message: result.message });
+  const { action } = body;
+  let params = body.params || {};
+  let opts = null;
+
+  // 用户按钮通道同样要过收款人解析层 —— 否则绕过 Agent 直接调这个接口就能跳过通讯录校验
+  if (action === 'transfer.execute' || action === 'scheduled.create') {
+    const gate = agent.resolvePayeeGate(u, { action, params });
+    if (gate.stop) {
+      return json(res, 403, Object.assign({ ok: false, blocked: true }, gate.reply, { message: gate.reply.text }));
+    }
+    params = gate.params;
+    opts = gate.opts;
+  }
+
+  const result = gateway.createApproval(u, 'user', action, params, opts);
+  if (result.blocked) return json(res, 403, { ok: false, blocked: true, layer: result.layer, ref: result.ref, message: result.message });
   if (result.free) return json(res, 200, { ok: true, free: true });
   json(res, 200, { ok: true, approval: result.approval });
 });
@@ -219,7 +328,13 @@ route('POST', '/api/bills/upload', async (req, res, body) => {
   const u = needAuth(req, res); if (!u) return;
   const db = store.get();
   const content = String(body.content || '').trim();
+  if (body.__tooLarge) return json(res, 413, { ok: false, message: '文件过大（上限 1MB）' });
   if (!content) return json(res, 400, { ok: false, message: '账单内容为空' });
+  // U-14 上传内容长度上限：超限返回 413，而不是悄悄断连接
+  if (content.length > 1024 * 1024) {
+    gateway.audit(u.id, 'user', 'bills.upload', { size: content.length }, 'BLOCKED', '账单内容超过 1MB 上限，已拒绝', gateway.LAYER.VERIFY);
+    return json(res, 413, { ok: false, message: '文件过大（上限 1MB）' });
+  }
   // 注入扫描：账单文本是不可信外部数据，先清洗再入库
   const scan = agent.sanitizeBillText(content);
   if (scan.hitCount > 0) {
@@ -262,10 +377,17 @@ route('GET', '/api/wealth/holdings', async (req, res) => {
 // 风险测评
 route('POST', '/api/wealth/assess', async (req, res, body) => {
   const u = needAuth(req, res); if (!u) return;
+  // U-30 测评限频：同一用户 24 小时内最多 3 次，防止"临时刷到 C5 再买 R4"
+  const g = limits.guard('assess', u.id);
+  if (!g.ok) {
+    gateway.audit(u.id, 'user', 'risk.assess', {}, 'BLOCKED', `风险测评已被限频，还需等待 ${g.retryAfter} 秒`, gateway.LAYER.VERIFY);
+    return json(res, 429, { ok: false, retryAfter: g.retryAfter, message: `风险测评每 24 小时最多更新 3 次，请 ${Math.ceil(g.retryAfter / 3600)} 小时后再试` });
+  }
   const answers = Array.isArray(body.answers) ? body.answers : [];
   const score = answers.reduce((s, a) => s + Number(a || 0), 0); // 每题 1-5 分，共 5 题
   const level = score <= 8 ? 'C1' : score <= 12 ? 'C2' : score <= 16 ? 'C3' : score <= 20 ? 'C4' : 'C5';
   u.riskLevel = level;
+  limits.fail('assess', u.id);   // 计一次测评（24h 内 3 次上限）
   gateway.audit(u.id, 'user', 'risk.assess', { score, level }, 'OK', `完成风险测评：${level}（适当性匹配基准确立）`);
   store.save();
   json(res, 200, { ok: true, level, message: `测评完成：你的风险等级为 ${level}（C1 保守型 ~ C5 激进型）。超出等级的产品将被适当性规则拦截。` });
@@ -293,6 +415,55 @@ route('POST', '/api/cards/remove', async (req, res, body) => {
   gateway.audit(u.id, 'user', 'card.remove', { cardId: card.id }, 'OK', `用户本人验证支付密码后解绑卡片「${card.name}」（P3 操作，Agent 无此权限）`);
   store.save();
   json(res, 200, { ok: true, message: `卡片「${card.name}」已解绑（P3 高危操作：仅用户本人凭支付密码可执行，Agent 永久无权限）` });
+});
+
+// ---------- 收款人可信通讯录（语义绕过防御）----------
+// 权限约束：以下接口只校验登录态，均**不注册进 gateway.POLICY 白名单**。
+// 也就是说 Agent 压根没有调用入口 —— 这是"Agent 不能碰通讯录"的技术保证，不是靠运行时判断。
+route('GET', '/api/contacts', async (req, res) => {
+  const u = needAuth(req, res); if (!u) return;
+  json(res, 200, { ok: true, list: contacts.list(u.id) });
+});
+
+route('POST', '/api/contacts', async (req, res, body) => {
+  const u = needAuth(req, res); if (!u) return;
+  const r = contacts.addContact(u.id, body || {});
+  if (!r.ok) return json(res, 400, { ok: false, message: r.message });
+  json(res, 200, r);
+});
+
+route('POST', '/api/contacts/:id/verify/start', async (req, res, body, params) => {
+  const u = needAuth(req, res); if (!u) return;
+  const r = contacts.startVerify(u.id, params.id);
+  if (!r.ok) return json(res, 400, { ok: false, message: r.message });
+  json(res, 200, r);
+});
+
+route('POST', '/api/contacts/:id/verify/confirm', async (req, res, body, params) => {
+  const u = needAuth(req, res); if (!u) return;
+  const r = contacts.completeVerify(u.id, params.id, body && body.code);
+  if (!r.ok) return json(res, 400, { ok: false, message: r.message });
+  json(res, 200, r);
+});
+
+route('DELETE', '/api/contacts/:id', async (req, res, body, params) => {
+  const u = needAuth(req, res); if (!u) return;
+  const r = contacts.removeContact(u.id, params.id);
+  if (!r.ok) return json(res, 404, { ok: false, message: r.message });
+  json(res, 200, r);
+});
+
+// 代称解析（前端实时调用，也用于演示"谐音/未登记会被拦住"）
+route('POST', '/api/contacts/resolve', async (req, res, body) => {
+  const u = needAuth(req, res); if (!u) return;
+  const r = contacts.resolvePayee(u.id, body && body.alias);
+  json(res, 200, {
+    ok: true,
+    status: r.status,
+    warning: r.warning || null,
+    contact: r.contact ? contacts.publicView(r.contact) : null,
+    candidates: (r.candidates || []).map(c => c)
+  });
 });
 
 // ---------- 定时转账 / AA ----------
@@ -335,7 +506,7 @@ route('GET', '/api/security/overview', async (req, res) => {
     policy: gateway.listPolicy(),
     standing: db.standingAuths.filter(a => a.userId === u.id),
     limits: u.limits,
-    smsInbox: db.smsCodes.filter(s => s.phone === u.phone).slice(-10).reverse().map(s => ({ code: s.code, purpose: s.purpose, t: s.expiresAt - 5 * 60 * 1000 })),
+    smsInbox: db.smsCodes.filter(s => s.phone === u.phone || s.userId === u.id).slice(-10).reverse().map(s => ({ code: s.code, purpose: s.purpose, contactId: s.contactId || null, t: s.expiresAt - 5 * 60 * 1000 })),
     audit: db.auditLogs.filter(l => l.userId === u.id).slice(-100).reverse()
   });
 });

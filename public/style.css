@@ -218,3 +218,18 @@ input, select, textarea { font-family: var(--font); font-size: 14px; }
 /* ===== 撤销窗口 ===== */
 .revoke-bar { display: flex; align-items: center; gap: 10px; background: var(--warn-bg); border: 1px solid #fde68a; border-radius: 10px; padding: 10px 14px; margin-top: 10px; font-size: 12.5px; color: var(--warn); }
 .revoke-bar .countdown { font-family: ui-monospace, Menlo, monospace; font-weight: 700; color: var(--danger); }
+
+/* ===== 通讯录 / 收款人身份卡（语义绕过防御）===== */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.grid2 input { width: 100%; }
+.contact-item { display: grid; grid-template-columns: 1.4fr 1.2fr auto auto; gap: 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; background: #fff; }
+.contact-item.is-pending { background: var(--warn-bg); border-color: #fde68a; }
+.contact-item .ci-name { font-weight: 600; font-size: 14px; }
+.contact-item .ci-alias { color: var(--primary); font-weight: 500; }
+.contact-item .mono { font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; }
+.contact-item .ci-actions { display: flex; gap: 6px; justify-self: end; }
+.pill { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 20px; }
+.pill.ok { background: #dcfce7; color: #15803d; }
+.pill.warn { background: var(--danger-bg); color: var(--danger); }
+.payee-warning { background: var(--danger-bg); border: 1px solid #fecaca; color: #b91c1c; padding: 9px 12px; border-radius: 8px; font-size: 12.5px; margin: 10px 0; line-height: 1.6; }
+.ack-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--danger); background: var(--warn-bg); border: 1px solid #fde68a; border-radius: 8px; padding: 8px 10px; margin: 10px 0; }
