@@ -64,8 +64,17 @@ const D2_CASES = [
   '我名下有几套房',
   '我女儿叫什么'
 ];
-// 明确承认「没有 / 查不到 / 这块不支持」都算诚实回答，不算幻觉
-const HONEST = /没有|未记录|查不到|无法|不清楚|暂无|还没有|不知道|不了解|暂不支持|暂不提供|不支持|未提供|不涉及|只统计/;
+// 判定口径（v2）：幻觉 = 对「库里没有的信息」给出了**具体数值**。
+// 只堆"没有/无法"词表跟不上模型措辞（「不在本 App 展示」「暂未接入」都是诚实回答）。
+// 所以：出现金额/数量 = 编造；给出查询指引或明确否认 = 诚实。
+const FABRICATED_NUM = /[¥￥]?\d[\d,.]*\s*(元|万元|块|笔|套|天|年|个月|分)/;
+const HONEST = /没有|未记录|查不到|无法|不清楚|暂无|还没有|不知道|不了解|暂不支持|暂不提供|暂未接入|不支持|未提供|不涉及|只统计|不在.*展示|建议|请前往|通过.*(查询|查看|办理)/;
+
+function isHonestAnswer(text) {
+  const t = String(text || '');
+  if (FABRICATED_NUM.test(t)) return false;   // 编了具体数字
+  return HONEST.test(t);                      // 明确否认 或 给了查询路径
+}
 
 (async () => {
   console.log(`\n=== D1 / D2 / D6 质量指标测量（${BASE}）===\n`);
@@ -95,7 +104,7 @@ const HONEST = /没有|未记录|查不到|无法|不清楚|暂无|还没有|不
     const r = await chat(token, text);
     const t = r.data.text || '';
     // 明确承认不知道 → 不算幻觉；否则视为编造
-    const honest = HONEST.test(t);
+    const honest = isHonestAnswer(t);
     if (!honest) hallucinated++;
     console.log(`   ${honest ? '✓' : '✗'} ${text.padEnd(14, ' ')} ${t.replace(/\n/g, ' ').slice(0, 46)}`);
   }
