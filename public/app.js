@@ -80,6 +80,8 @@ function renderHome(overview) {
     m.blocked ? renderBlockedCard(m) :
     m.subscriptions ? renderSubscriptionsCard(m) :
     m.plan ? renderPlanCard(m) :
+    m.loss ? renderLossCard(m) :
+    m.lossReceipt ? renderLossReceipt(m) :
     `<div class="msg ${m.role === 'user' ? 'user' : 'bot'}">
       <div class="avatar">${m.role === 'user' ? '😀' : '🤖'}</div>
       <div class="bubble">${esc(m.text)}</div>
@@ -112,6 +114,56 @@ function renderHome(overview) {
 }
 
 // 红色拦截卡：三要素 —— ① 什么攻击 ② 被哪一层拦 ③ 证据编号
+// ================= A4.3–A4.5 挂失评估卡 / 回执卡 =================
+function renderLossCard(m) {
+  const a = m.loss || {};
+  const aff = a.affected || {};
+  const subs = aff.subscriptions || [];
+  const sch = aff.scheduled || [];
+  const sus = aff.suspicious || [];
+  const spares = a.spareCards || [];
+  const row = (k, v) => `<div class="sub-item"><span class="muted">${k}</span><span>${v}</span></div>`;
+  const btns = spares.length
+    ? spares.map(c => `<button class="btn btn-primary btn-sm" data-act="reportLoss" data-arg="${esc(a.card.id)}" data-arg2="${esc(c.id)}">挂失并迁移到 ${esc(c.name)}</button>`).join('')
+      + `<button class="btn btn-outline btn-sm" data-act="reportLoss" data-arg="${esc(a.card.id)}">仅挂失</button>`
+    : `<button class="btn btn-danger btn-sm" data-act="reportLoss" data-arg="${esc(a.card.id)}">确认挂失</button>`;
+  return `<div class="msg bot">
+    <div class="avatar">🤖</div>
+    <div style="flex:1">
+      <div class="bubble">${esc(m.text)}</div>
+      <div class="card" style="margin-top:8px">
+        <b>⚠️ 挂失影响评估</b>
+        <div style="margin-top:8px">
+          ${row('卡片', `${esc(a.card.name)} ${esc(a.card.number)}`)}
+          ${row('自动扣费', subs.length ? `${subs.length} 项：${subs.map(s => esc(s.merchant)).join('、')}` : '无')}
+          ${row('定时转账', sch.length ? `${sch.length} 个将被暂停` : '无')}
+          ${row('可疑交易', sus.length ? `<b style="color:#A32D2D">${sus.length} 笔</b>` : '近 7 天未发现')}
+        </div>
+        ${sus.length ? `<div class="payee-warning" style="margin-top:8px">可疑：#${sus.map(s => esc(String(s.toName || '未知')) + ' ¥' + yuan(s.amount)).join('、')}（挂失后可继续申诉）</div>` : ''}
+        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">${btns}</div>
+      </div>
+    </div>
+  </div>`;
+}
+function renderLossReceipt(m) {
+  const r = m.lossReceipt || {};
+  const done = r.done || [];
+  return `<div class="msg bot">
+    <div class="avatar">🤖</div>
+    <div style="flex:1">
+      <div class="bubble">${esc(m.text)}</div>
+      <div class="card" style="margin-top:8px">
+        <b>🧾 挂失回执 ${esc(r.id || '')}</b>
+        <div style="margin-top:8px">${done.map(d => `<div class="plan-step"><span>✅</span><span style="flex:1">${esc(d)}</span></div>`).join('')}</div>
+        <div class="hr"></div>
+        <b>下一步</b>
+        <div style="margin-top:6px">${(r.nextSteps || []).map(s => `<div class="muted">· ${esc(s)}</div>`).join('')}</div>
+        <div style="margin-top:10px"><button class="btn btn-outline btn-sm" data-act="go" data-arg="transfer">查看转账记录 / 申诉</button></div>
+      </div>
+    </div>
+  </div>`;
+}
+
 // ================= A3 订阅列表卡 =================
 function monthlyOf(s) {
   return s.cycle === 'yearly' ? Math.round(s.amount / 12)
@@ -313,7 +365,7 @@ async function streamChat(msg, bubble) {
   if (!result) return null;
   return { role: 'bot', text: result.text || typed, blocked: result.type === 'blocked',
     approval: result.approval, layer: result.layer, attackType: result.attackType, ref: result.ref, auditId: result.auditId,
-    subscriptions: result.subscriptions || null, plan: result.plan || null };
+    subscriptions: result.subscriptions || null, plan: result.plan || null, loss: result.loss || null };
 }
 async function confirmApproval(id, needSms, tamper) {
   const body = {};
@@ -341,7 +393,7 @@ async function confirmApproval(id, needSms, tamper) {
   if (idx2 >= 0) {
     S.chat[idx2] = { role: 'bot', text: (r.ok ? '✅ ' : (tamper ? '🛡️ ' : '❌ ')) + r.message, blocked: !r.ok,
       layer: r.layer, attackType: r.blocked ? (tamper ? '参数篡改（改金额再确认）' : '授权单校验拦截') : null, ref: r.ref, auditId: r.auditId,
-      plan: r.plan || null, subscriptions: r.subscriptions || null };
+      plan: r.plan || null, subscriptions: r.subscriptions || null, lossReceipt: r.lossReceipt || null };
   }
   toast(r.message, r.ok ? 'ok' : 'err');
   render(); refreshSMS();
@@ -894,7 +946,8 @@ const ACTIONS = {
   undoPlan: () => sendChat('撤销生日惊喜'),
   lockBudget: (el, a, a2) => requestOps('escrow.hold', { planId: a, amount: String((Number(a2) || 20000) / 100) }),
   clockAdvance: (el, a) => advanceClock(Number(a) || 10, false),
-  clockReset: () => advanceClock(0, true)
+  clockReset: () => advanceClock(0, true),
+  reportLoss: (el, a, a2) => requestOps('card.reportLoss', a2 ? { cardId: a, migrateToCardId: a2 } : { cardId: a })
 };
 
 const SUBMITS = { doLogin: e => doLogin(e), doRegister: e => doRegister(e) };

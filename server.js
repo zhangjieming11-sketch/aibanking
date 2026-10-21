@@ -648,6 +648,18 @@ route('POST', '/api/demo/reset', async (req, res) => {
 });
 
 // ---------------- 服务器 ----------------
+// 审计链启动自检：早期裁剪日志时没有重封链，历史库里可能留下断点。
+// 只修一次（重封是幂等的），并在 audit.reseal 里留下原因，不掩盖这次修复。
+try {
+  const v = gateway.verifyAuditChain();
+  if (!v.ok && v.count) {
+    const r = gateway.resealAudit(`启动自检发现链断裂（断点 #${(v.brokenAt || {}).id}：${(v.brokenAt || {}).reason}），自动重封`);
+    console.log(`  ⚠️ 审计链曾断裂，已重封 ${r.before} 条（记录内容未改，锚点重置）`);
+  }
+} catch (e) {
+  console.log('  ⚠️ 审计链自检失败（非致命）：' + String(e).slice(0, 80));
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost');
