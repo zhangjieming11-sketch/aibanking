@@ -18,8 +18,16 @@ const S = {  // 全局状态
   chat: [],            // {role:'user'|'bot'|'blocked', text}
   sms: [],             // 演示短信
   collapsed: false,
-  pendingPayee: null   // 待确认的收款人候选（歧义/谐音时使用）
+  pendingPayee: null,  // 待确认的收款人候选（歧义/谐音时使用）
+  // E9 投屏演示模式：大字号 + 高对比。可用侧栏按钮切换，也可用 ?proj=1 直接进入
+  projection: LS.get('ab_proj') === '1' || /[?&]proj=1/.test(location.search),
+  // E6 黄金轨迹回放：traceId 为 null 表示未在回放
+  traceId: null,
+  traceStep: 0
 };
+
+// 投屏模式在首帧就生效，避免答辩时先看到小字再跳成大字
+if (S.projection) document.body.classList.add('projection');
 
 function toast(text, type) {
   const el = document.createElement('div');

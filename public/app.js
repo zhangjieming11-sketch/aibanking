@@ -36,7 +36,9 @@ const NAV = [
   { group: '总览', items: [{ id: 'home', icon: '💬', label: '智能助手' }] },
   { group: '账户', items: [{ id: 'bills', icon: '📊', label: '账单' }, { id: 'cards', icon: '💳', label: '卡片' }] },
   { group: '资金', items: [{ id: 'transfer', icon: '💸', label: '转账' }, { id: 'wealth', icon: '📈', label: '理财' }] },
-  { group: '安全', items: [{ id: 'contacts', icon: '📇', label: '收款人通讯录' }, { id: 'security', icon: '🛡️', label: '安全中心' }] }
+  { group: '安全', items: [{ id: 'contacts', icon: '📇', label: '收款人通讯录' }, { id: 'security', icon: '🛡️', label: '安全中心' }] },
+  // E6 黄金轨迹：答辩兜底，断网可回放
+  { group: '演示', items: [{ id: 'traces', icon: '🎬', label: '黄金轨迹' }] }
 ];
 function renderShell(contentHTML) {
   app.innerHTML = `
@@ -46,6 +48,9 @@ function renderShell(contentHTML) {
       <div class="logo"><svg class="shield" viewBox="0 0 24 24" fill="none"><path d="M12 2L4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3z" fill="#6366f1"/><path d="M9 12l2 2 4-4" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/></svg><span>${S.collapsed ? '' : 'AgentBank'}</span></div>
       ${NAV.map(g => `<div class="nav-group"><div class="group-title">${g.group}</div>${g.items.map(i => `<div class="nav-item ${S.tab === i.id ? 'active' : ''}" data-act="go" data-arg="${i.id}"><span class="icon">${i.icon}</span><span>${i.label}</span></div>`).join('')}</div>`).join('')}
       <div class="bottom">
+        <button class="proj-btn ${S.projection ? 'on' : ''}" data-act="toggleProjection" title="投屏演示模式：字号放大、对比度提高">
+          ${S.projection ? '🔍 演示模式：开' : '🎬 演示模式'}
+        </button>
         <div class="user-chip" data-act="doLogout">
           <div class="avatar">${esc((S.user && S.user.name || '?').slice(0, 1))}</div>
           ${S.collapsed ? '' : `<div><div style="font-size:13px;color:#fff">${esc(S.user ? S.user.name : '')}</div><div style="font-size:11px;color:#64748b">退出登录</div></div>`}
@@ -172,7 +177,7 @@ function renderProductsCard(m) {
   const list = m.products || [];
   const rows = list.map(p => `<div class="prod-row ${p.recommended ? 'prod-pick' : ''}">
       <div style="flex:1">
-        <b>${esc(p.name)}</b>${p.recommended ? ' <span class="pill pill-warn">推荐</span>' : ''}
+        <b>${esc(p.name)}</b>${p.recommended ? ' <span class="pill warn">推荐</span>' : ''}
         <div class="muted">${esc(p.type)} · 起投 ${yuan(p.minCents || 0)} · ${esc(p.reason || '')}</div>
       </div>
       <div style="text-align:right;min-width:96px">
@@ -255,7 +260,7 @@ function renderSubscriptionsCard(m) {
       <div>
         <b>${esc(s.merchant)}</b>
         <span class="muted">${esc(s.cycleLabel)} ¥${yuan(s.amount)} · 下次 ${esc(s.nextChargeAt)}</span>
-        ${s.duplicateCount ? `<span class="pill pill-warn">疑似重复扣费</span>` : ''}
+        ${s.duplicateCount ? `<span class="pill warn">疑似重复扣费</span>` : ''}
         ${s.status === 'cancelled' ? '<span class="pill">已取消</span>' : ''}
       </div>
       <div style="white-space:nowrap">
@@ -983,6 +988,111 @@ async function boot() {
   S.user = me.user;
   render();
 }
+// ================= E6 黄金轨迹回放（纯静态，断网可用）=================
+// 目的：答辩现场断网 / 模型不可用 / 演示数据被测试耗时，仍能完整演示核心能力。
+// 约束：只渲染内嵌数据，不调用任何接口；不美化——真实系统会拒绝的地方，预录里同样拒绝。
+function currentTrace() {
+  const list = (typeof TRACES !== 'undefined' && TRACES) || [];
+  return list.find(t => t.id === S.traceId) || null;
+}
+
+function traceBubble(s) {
+  if (s.role === 'user') {
+    return `<div class="msg user"><div class="avatar">😀</div><div class="bubble">${esc(s.text)}</div></div>`;
+  }
+  const bubbleCls = s.blocked ? 'bubble bubble-danger' : s.ok ? 'bubble bubble-ok' : s.warn ? 'bubble bubble-warn' : 'bubble';
+  const tags = [];
+  if (s.layer) tags.push(`<span class="pill">${esc(s.layer)}</span>`);
+  if (s.attackType) tags.push(`<span class="pill warn">${esc(s.attackType)}</span>`);
+  if (s.ref) tags.push(`<span class="pill">${esc(s.ref)}</span>`);
+  if (s.approval) tags.push('<span class="pill">授权单 · 待本人双因子</span>');
+  return `<div class="msg bot ${s.blocked ? 'blocked' : ''}">
+    <div class="avatar">${s.blocked ? '🛡️' : '🤖'}</div>
+    <div class="${bubbleCls}">${esc(s.text)}
+      ${s.pill ? `<div class="trace-pill">${esc(s.pill)}</div>` : ''}
+      ${tags.length ? `<div class="trace-tags">${tags.join('')}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+function renderTraces() {
+  const list = (typeof TRACES !== 'undefined' && TRACES) || [];
+  const cur = currentTrace();
+
+  const cards = list.map((t, i) => {
+    const active = cur && cur.id === t.id;
+    return `<div class="trace-card ${active ? 'active' : ''}">
+      <div class="trace-head">
+        <div class="trace-no">${i + 1}</div>
+        <div style="flex:1;min-width:0">
+          <div class="trace-title">${esc(t.title)}</div>
+          <div class="trace-meta">${esc(t.pattern)} · 覆盖 ${esc(t.covers)} · 共 ${t.steps.length} 步</div>
+        </div>
+      </div>
+      <div class="trace-why">${esc(t.why)}</div>
+      <div style="margin-top:10px">
+        <button class="btn ${active ? 'btn-outline' : 'btn-primary'} btn-sm" data-act="playTrace" data-arg="${esc(t.id)}">
+          ${active ? '↻ 从头播放' : '▶ 播放这条'}
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+
+  let stage = '';
+  if (cur) {
+    const shown = cur.steps.slice(0, S.traceStep);
+    stage = `<div class="card" style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <b>正在回放：${esc(cur.title)}</b>
+        <span class="muted">第 ${S.traceStep} / ${cur.steps.length} 步</span>
+      </div>
+      <div class="trace-stage">
+        ${shown.map(s => traceBubble(s)).join('') || '<div class="muted">点「下一步」开始</div>'}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" data-act="traceNext" ${S.traceStep >= cur.steps.length ? 'disabled' : ''}>下一步 ▶</button>
+        <button class="btn btn-outline btn-sm" data-act="traceReset">从头再放</button>
+        <button class="btn btn-outline btn-sm" data-act="playTrace" data-arg="">退出回放</button>
+      </div>
+      <div class="muted" style="margin-top:10px">以上为预录数据，不发起任何网络请求 —— 断网、模型不可用时仍可完整演示。</div>
+    </div>`;
+  }
+
+  renderShell(`
+    <div class="page-title">🎬 黄金轨迹</div>
+    <div class="page-sub">7 条预录轨迹，覆盖本次提交的核心能力。答辩时若断网、模型不可用或演示数据被打乱，用这里兜底。</div>
+    ${stage}
+    <div class="trace-grid">${cards}</div>
+  `);
+}
+
+// E9 投屏演示模式：整体放大 + 提高对比，答辩席 3 米外也能看清
+function toggleProjection() {
+  S.projection = !S.projection;
+  document.body.classList.toggle('projection', S.projection);
+  LS.set('ab_proj', S.projection ? '1' : '0');
+  render();
+  toast(S.projection ? '演示模式已开启：字号放大、对比度提高' : '已退出演示模式');
+}
+
+function playTrace(id) {
+  if (!id) { S.traceId = null; S.traceStep = 0; render(); return; }
+  S.traceId = id;
+  S.traceStep = 1;
+  render();
+}
+function traceNext() {
+  const cur = currentTrace();
+  if (!cur) return;
+  if (S.traceStep < cur.steps.length) S.traceStep++;
+  render();
+}
+function traceReset() {
+  if (!S.traceId) return;
+  S.traceStep = 1;
+  render();
+}
+
 async function render() {
   if (!S.token) return renderLogin('login');
   if (!S.user) return boot();
@@ -994,6 +1104,7 @@ async function render() {
     else if (S.tab === 'cards') await renderCards();
     else if (S.tab === 'contacts') await renderContacts();
     else if (S.tab === 'security') await renderSecurity();
+    else if (S.tab === 'traces') renderTraces();
   } catch (e) { console.error(e); toast('页面加载失败：' + e.message, 'err'); }
 }
 render();
@@ -1059,7 +1170,12 @@ const ACTIONS = {
   setPayPass: () => setPayPass(),
   answerAssess: (el, a, a2) => answerAssess(Number(a), Number(a2)),
   buyProduct: (el, a) => requestOps('wealth.subscribe', { productId: a, amount: '1000' }),
-  reportLoss: (el, a, a2) => requestOps('card.reportLoss', a2 ? { cardId: a, migrateToCardId: a2 } : { cardId: a })
+  reportLoss: (el, a, a2) => requestOps('card.reportLoss', a2 ? { cardId: a, migrateToCardId: a2 } : { cardId: a }),
+  // E6 黄金轨迹 / E9 投屏演示模式
+  toggleProjection: () => toggleProjection(),
+  playTrace: (el, a) => playTrace(a),
+  traceNext: () => traceNext(),
+  traceReset: () => traceReset()
 };
 
 const SUBMITS = { doLogin: e => doLogin(e), doRegister: e => doRegister(e) };

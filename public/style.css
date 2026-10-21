@@ -248,3 +248,56 @@ input, select, textarea { font-family: var(--font); font-size: 14px; }
 .prod-row{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid rgba(0,0,0,.06);font-size:13px}
 .prod-row:last-child{border-bottom:none}
 .prod-pick{background:#F1F7EE;border-radius:8px;padding:10px 8px}
+
+/* ==========================================================================
+   E9 投屏演示模式（projection）
+   目标：答辩席 3 米外也能看清。整体等比放大 + 提高对比度。
+   切换方式：侧栏底部按钮 / URL 加 ?proj=1 / localStorage ab_proj
+   ========================================================================== */
+.proj-btn { margin: 0 12px 10px; padding: 9px 10px; border-radius: 8px; background: #1e293b; color: #cbd5e1; font-size: 13px; text-align: left; border: 1px solid #334155; }
+.proj-btn:hover { background: #334155; color: #fff; }
+.proj-btn.on { background: #4f46e5; color: #fff; border-color: #6366f1; font-weight: 600; }
+
+/* 主放大手段：等比缩放（Chrome / Edge / Safari 15.4+ 均支持） */
+@supports (zoom: 1.2) {
+  body.projection { zoom: 1.3; }
+}
+/* 不支持 zoom 的浏览器退化为字号放大，保证不是"开了没反应" */
+@supports not (zoom: 1.2) {
+  body.projection { font-size: 18px; }
+  body.projection .page-title { font-size: 26px; }
+  body.projection .msg .bubble { font-size: 18px; }
+  body.projection .nav-item { font-size: 16px; }
+  body.projection .card { padding: 26px; }
+}
+
+/* 对比度增强：纯色背景、加深次要文字、强化边框 */
+body.projection { background: #fff; }
+body.projection .page-sub { color: #334155; font-size: 14.5px; }
+body.projection .muted { color: #475569; }
+body.projection .card { border: 1px solid #cbd5e1; box-shadow: 0 2px 8px rgba(15, 23, 42, .10); }
+body.projection .sidebar { background: #000; }
+body.projection .nav-item { font-size: 15px; }
+body.projection .msg .bubble { font-size: 15px; line-height: 1.75; }
+body.projection .pill { font-size: 12.5px; padding: 3px 10px; }
+/* 演示模式下隐藏非必要装饰，减少干扰 */
+body.projection .tour-launch { opacity: .85; }
+
+/* ==========================================================================
+   E6 黄金轨迹回放
+   ========================================================================== */
+.trace-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+.trace-card { background: var(--card); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); border: 2px solid transparent; }
+.trace-card.active { border-color: var(--primary); }
+.trace-head { display: flex; gap: 12px; align-items: flex-start; }
+.trace-no { width: 26px; height: 26px; flex-shrink: 0; border-radius: 50%; background: var(--primary-light); color: var(--primary); font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.trace-title { font-size: 15px; font-weight: 600; line-height: 1.4; }
+.trace-meta { font-size: 12px; color: var(--text-2); margin-top: 4px; }
+.trace-why { font-size: 12.5px; color: var(--text-2); margin-top: 10px; line-height: 1.6; padding-left: 38px; }
+.trace-stage { max-height: 60vh; overflow-y: auto; padding-right: 4px; }
+.trace-stage .msg { margin-bottom: 10px; }
+.trace-pill { margin-top: 8px; font-size: 11.5px; color: var(--text-2); border-top: 1px dashed var(--border); padding-top: 6px; }
+.trace-tags { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+.bubble-ok { background: var(--success-bg) !important; border-color: #bbf7d0 !important; }
+.bubble-warn { background: var(--warn-bg) !important; border-color: #fde68a !important; }
+.bubble-danger { background: var(--danger-bg) !important; border-color: #fecaca !important; }

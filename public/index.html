@@ -14,6 +14,8 @@
 <!-- 全局工具与状态拆到 boot.js：CSP 的 script-src 'self' 会拒绝内联脚本，
      内联会导致 $ is not defined → 整页白屏（详见 docs/安全加固方案_v2.1.md U-36） -->
 <script src="/boot.js"></script>
+<!-- E6 黄金轨迹预录：纯静态数据，断网可回放（答辩兜底） -->
+<script src="/traces.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>
