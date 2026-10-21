@@ -78,6 +78,8 @@ function renderSMS() {
 function renderHome(overview) {
   const msgs = S.chat.map(m => m.approval ? renderApprovalCard(m) :
     m.blocked ? renderBlockedCard(m) :
+    m.subscriptions ? renderSubscriptionsCard(m) :
+    m.plan ? renderPlanCard(m) :
     `<div class="msg ${m.role === 'user' ? 'user' : 'bot'}">
       <div class="avatar">${m.role === 'user' ? '😀' : '🤖'}</div>
       <div class="bubble">${esc(m.text)}</div>
@@ -88,7 +90,9 @@ function renderHome(overview) {
     <div class="card chat-box">
       <div style="display:flex;justify-content:space-between;padding:14px 16px 0;align-items:center">
         <div><b>${esc(S.user.name)}</b> <span class="muted">余额 ${yuan(overview.balance)} · 风险等级 ${S.user.riskLevel || '未测评'}</span> <span id="llmBadge" class="tag tag-gray">…</span></div>
-        <div><button class="btn btn-danger btn-sm" data-act="attackTest">⚡ 注入攻击演示</button></div>
+        <div><button class="btn btn-outline btn-sm" data-act="clockAdvance" data-arg="10">⏩ 时间+10天</button>
+        <button class="btn btn-outline btn-sm" data-act="clockReset">↺ 重置时间</button>
+        <button class="btn btn-danger btn-sm" data-act="attackTest">⚡ 注入攻击演示</button></div>
       </div>
       <div class="chat-messages" id="chatMsgs">${msgs || '<div class="msg bot"><div class="avatar">🤖</div><div class="bubble">你好！我是你的银行智能助手 🛡️<br><br>试试这些指令：<br>· 「查一下余额」<br>· 「给小红转 100 元」<br>· 「每月给房东转 2000 元」<br>· 「和小红 AA 吃饭总共 300」<br>· 「推荐一下理财」<br>· 「冻结日常卡」<br>· 「修改支付密码」（会被拦截 😏）</div></div>'}</div>
       <div class="quick-chips">
@@ -108,6 +112,79 @@ function renderHome(overview) {
 }
 
 // 红色拦截卡：三要素 —— ① 什么攻击 ② 被哪一层拦 ③ 证据编号
+// ================= A3 订阅列表卡 =================
+function monthlyOf(s) {
+  return s.cycle === 'yearly' ? Math.round(s.amount / 12)
+    : s.cycle === 'quarterly' ? Math.round(s.amount / 3)
+    : s.cycle === 'weekly' ? s.amount * 4 : s.amount;
+}
+function renderSubscriptionsCard(m) {
+  const all = m.subscriptions || [];
+  const active = all.filter(s => s.status !== 'cancelled');
+  const monthly = active.reduce((s, x) => s + monthlyOf(x), 0);
+  const rows = all.map(s => `
+    <div class="sub-item">
+      <div>
+        <b>${esc(s.merchant)}</b>
+        <span class="muted">${esc(s.cycleLabel)} ¥${yuan(s.amount)} · 下次 ${esc(s.nextChargeAt)}</span>
+        ${s.duplicateCount ? `<span class="pill pill-warn">疑似重复扣费</span>` : ''}
+        ${s.status === 'cancelled' ? '<span class="pill">已取消</span>' : ''}
+      </div>
+      <div style="white-space:nowrap">
+        ${s.status !== 'cancelled'
+          ? `<button class="btn btn-outline btn-sm" data-act="cancelSub" data-arg="${esc(s.merchant)}">取消</button>` : ''}
+        ${s.duplicateCount && s.status !== 'cancelled'
+          ? `<button class="btn btn-danger btn-sm" style="margin-left:6px" data-act="reportSub" data-arg="${esc(s.merchant)}">申诉</button>` : ''}
+      </div>
+    </div>`).join('');
+  return `<div class="msg bot">
+    <div class="avatar">🤖</div>
+    <div style="flex:1">
+      <div class="bubble">${esc(m.text)}</div>
+      <div class="card" style="margin-top:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <b>📋 自动扣费清单</b>
+          <span class="muted">${active.length} 项 · 每月合计 ${yuan(monthly)}</span>
+        </div>
+        <div style="margin-top:8px">${rows}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ================= A6 计划进度卡 =================
+const STEP_ICON = { done: '✅', skipped: '⏭️', reverted: '↩️', pending: '⏳', kept: '📌' };
+function renderPlanCard(m) {
+  const p = m.plan || {};
+  const steps = p.steps || [];
+  const es = p.escrow || {};
+  const doneCount = steps.filter(s => s.status === 'done' || s.status === 'skipped').length;
+  const rows = steps.map(s => `<div class="plan-step">
+      <span>${STEP_ICON[s.status] || '⏳'}</span>
+      <span style="flex:1"><b>${esc(s.label)}</b><div class="muted">${esc(s.detail || '')}</div></span>
+    </div>`).join('');
+  return `<div class="msg bot">
+    <div class="avatar">🤖</div>
+    <div style="flex:1">
+      <div class="bubble">${esc(m.text)}</div>
+      <div class="card" style="margin-top:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <b>🎂 ${esc(p.title || '生日惊喜')}</b>
+          <span class="muted">${esc(p.eventAt || p.eventDate || '')} · 预算 ${yuan(p.amount || 0)}</span>
+        </div>
+        <div class="pill" style="margin:8px 0">进度 ${doneCount}/${steps.length}${p.status === 'reverted' ? ' · 已回滚' : p.status === 'reminded' ? ' · 已提醒' : ''}</div>
+        ${rows}
+        <div style="margin-top:10px;display:flex;gap:8px">
+          ${es.status !== 'held' && es.status !== 'released' && es.status !== 'settled' && p.status !== 'reverted'
+            ? `<button class="btn btn-primary btn-sm" data-act="lockBudget" data-arg="${esc(p.id)}" data-arg2="${p.amount || 0}">🔒 锁定预算 ${yuan(p.amount || 0)}</button>` : ''}
+          ${p.status !== 'reverted'
+            ? `<button class="btn btn-outline btn-sm" data-act="undoPlan">↩️ 撤销整个计划</button>` : ''}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
 function renderBlockedCard(m) {
   const attack = m.attackType || '提示词注入 / 越权操作';
   const layer = m.layer || '数据隔离层';
@@ -186,8 +263,23 @@ async function sendChat(text) {
     const r = await api('/api/agent/chat', 'POST', { message: msg });
     if (!r.ok) { toast(r.message, 'err'); render(); return; }
     S.chat.push({ role: 'bot', text: r.text, blocked: r.type === 'blocked', approval: r.approval,
-      layer: r.layer, attackType: r.attackType, ref: r.ref, auditId: r.auditId });
+      layer: r.layer, attackType: r.attackType, ref: r.ref, auditId: r.auditId,
+      subscriptions: r.subscriptions || null, plan: r.plan || null });
     if (r.approval) refreshSMS();
+  }
+  render();
+}
+
+// A6.6 虚拟时钟：只影响本人计划的时间判断；推进后只生成建议卡，绝不自动执行
+async function advanceClock(days, reset) {
+  const r = await api('/api/demo/clock', 'POST', reset ? { reset: true } : { days });
+  if (!r.ok) return toast(r.message, 'err');
+  toast(r.message, 'ok');
+  const n = await api('/api/notifications');
+  const fired = (n.list || []).filter(x => !x.read && !x.revoked && x.kind === 'proactive');
+  if (fired.length) {
+    const last = fired[0];
+    S.chat.push({ role: 'bot', text: `🔔 ${last.title}\n${last.body}\n\n到点只发建议，没有自动执行任何操作——要不要执行，由你说。` });
   }
   render();
 }
@@ -220,7 +312,8 @@ async function streamChat(msg, bubble) {
   }
   if (!result) return null;
   return { role: 'bot', text: result.text || typed, blocked: result.type === 'blocked',
-    approval: result.approval, layer: result.layer, attackType: result.attackType, ref: result.ref, auditId: result.auditId };
+    approval: result.approval, layer: result.layer, attackType: result.attackType, ref: result.ref, auditId: result.auditId,
+    subscriptions: result.subscriptions || null, plan: result.plan || null };
 }
 async function confirmApproval(id, needSms, tamper) {
   const body = {};
@@ -247,7 +340,8 @@ async function confirmApproval(id, needSms, tamper) {
   const idx2 = S.chat.findIndex(m => m.approval && m.approval.id === id);
   if (idx2 >= 0) {
     S.chat[idx2] = { role: 'bot', text: (r.ok ? '✅ ' : (tamper ? '🛡️ ' : '❌ ')) + r.message, blocked: !r.ok,
-      layer: r.layer, attackType: r.blocked ? (tamper ? '参数篡改（改金额再确认）' : '授权单校验拦截') : null, ref: r.ref, auditId: r.auditId };
+      layer: r.layer, attackType: r.blocked ? (tamper ? '参数篡改（改金额再确认）' : '授权单校验拦截') : null, ref: r.ref, auditId: r.auditId,
+      plan: r.plan || null, subscriptions: r.subscriptions || null };
   }
   toast(r.message, r.ok ? 'ok' : 'err');
   render(); refreshSMS();
@@ -793,7 +887,14 @@ const ACTIONS = {
   saveLimits: () => saveLimits(),
   changePaypass: () => changePaypass(),
   setBillMonth: (el) => { S.billMonth = el.value; render(); },
-  renderLogin: (el, a) => renderLogin(a)
+  renderLogin: (el, a) => renderLogin(a),
+  // A3 / A6
+  cancelSub: (el, a) => sendChat('取消' + a),
+  reportSub: () => sendChat('申诉重复扣费'),
+  undoPlan: () => sendChat('撤销生日惊喜'),
+  lockBudget: (el, a, a2) => requestOps('escrow.hold', { planId: a, amount: String((Number(a2) || 20000) / 100) }),
+  clockAdvance: (el, a) => advanceClock(Number(a) || 10, false),
+  clockReset: () => advanceClock(0, true)
 };
 
 const SUBMITS = { doLogin: e => doLogin(e), doRegister: e => doRegister(e) };

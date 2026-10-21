@@ -11,6 +11,8 @@ const agent = require('./lib/agent');
 const banking = require('./lib/banking');
 const limits = require('./lib/limits');
 const contacts = require('./lib/contacts');
+const subscriptions = require('./lib/subscriptions');
+const plans = require('./lib/plans');
 
 store.load();
 const PORT = process.env.PORT || 3000;
@@ -115,6 +117,9 @@ route('POST', '/api/auth/register', async (req, res, body) => {
   db.cards.push({ id: 'c' + uid().slice(0, 6), userId: user.id, name: '默认储蓄卡', number: '6222' + String(Math.floor(Math.random() * 1e12)).padStart(12, '0'), frozen: false, isDefault: true });
   // 新用户同样预置演示通讯录，否则收款人解析层会把所有转账都判为「无法解析」
   db.contacts.push(...contacts.seedFor(user.id));
+  // A3 演示订阅（标记 origin=demo，与用户真实数据可区分）
+  if (!db.subscriptions) db.subscriptions = [];
+  db.subscriptions.push(...subscriptions.seedFor(user.id));
   gateway.audit(user.id, 'user', 'auth.register', { phone: maskPhone(phone) }, 'OK', '新用户注册（赠送演示金 ¥10,000.00）');
   store.save();
   json(res, 200, { ok: true, message: '注册成功，请登录', next: '建议登录后先设置支付密码（安全中心）' });
@@ -175,7 +180,7 @@ route('GET', '/api/me', async (req, res) => {
   const u = needAuth(req, res); if (!u) return;
   const db = store.get();
   const acc = db.accounts.find(a => a.userId === u.id);
-  json(res, 200, { ok: true, user: { id: u.id, name: u.name, phone: maskPhone(u.phone), riskLevel: u.riskLevel, hasPayPass: !!u.payPasswordHash, limits: u.limits }, balance: acc.balance });
+  json(res, 200, { ok: true, user: { id: u.id, name: u.name, phone: maskPhone(u.phone), riskLevel: u.riskLevel, hasPayPass: !!u.payPasswordHash, limits: u.limits }, balance: acc.balance, escrowCents: acc.escrowCents || 0, available: acc.balance - (acc.escrowCents || 0) });
 });
 
 // 设置/修改支付密码（仅用户本人，凭登录密码或旧支付密码）
@@ -296,7 +301,7 @@ route('GET', '/api/overview', async (req, res) => {
   const holdings = db.holdings.filter(h => h.userId === u.id).reduce((s, h) => s + h.amount, 0);
   const month = new Date().toISOString().slice(0, 7);
   const monthSpend = db.bills.filter(b => b.userId === u.id && b.date.startsWith(month)).reduce((s, b) => s + b.amount, 0);
-  json(res, 200, { ok: true, balance: acc.balance, holdings, monthSpend, userName: u.name, riskLevel: u.riskLevel });
+  json(res, 200, { ok: true, balance: acc.balance, escrowCents: acc.escrowCents || 0, available: acc.balance - (acc.escrowCents || 0), holdings, monthSpend, userName: u.name, riskLevel: u.riskLevel });
 });
 
 // ---------- 账单 ----------
@@ -480,6 +485,58 @@ route('GET', '/api/aa', async (req, res) => {
   // 我发起的 + 我参与的（按名字匹配，演示简化）
   const list = db.aaGroups.filter(g => g.creatorId === u.id || g.participants.some(p => p.name === u.name));
   json(res, 200, { ok: true, list });
+});
+
+// ---------- A3 订阅 / 代扣 ----------
+route('GET', '/api/subscriptions', async (req, res) => {
+  const u = needAuth(req, res); if (!u) return;
+  const list = subscriptions.listFor(u.id);
+  const active = list.filter(s => s.status !== 'cancelled');
+  json(res, 200, {
+    ok: true, list, activeCount: active.length,
+    duplicateCount: active.filter(s => s.duplicateCount > 0).length,
+    monthlyCents: active.reduce((s, x) => s + (x.cycle === 'yearly' ? Math.round(x.amount / 12)
+      : x.cycle === 'quarterly' ? Math.round(x.amount / 3)
+      : x.cycle === 'weekly' ? x.amount * 4 : x.amount), 0)
+  });
+});
+
+// ---------- A6 记忆 / 计划 / 通知 ----------
+route('GET', '/api/memory', async (req, res) => {
+  const u = needAuth(req, res); if (!u) return;
+  json(res, 200, { ok: true, list: require('./lib/memory').listFor(u.id) });
+});
+
+route('GET', '/api/plans', async (req, res) => {
+  const u = needAuth(req, res); if (!u) return;
+  const list = plans.find(u.id).map(plans.publicView);
+  json(res, 200, { ok: true, list, clock: { offsetDays: Math.round(plans.clock(u.id) / 86400000) } });
+});
+
+route('GET', '/api/notifications', async (req, res) => {
+  const u = needAuth(req, res); if (!u) return;
+  // 惰性触发 A6.3：进入通知面板时检查是否到点，到点只生成建议卡，不自动执行
+  const fired = plans.tick(u.id);
+  const db = store.get();
+  const list = (db.notifications || []).filter(n => n.userId === u.id).slice(-20).reverse();
+  json(res, 200, { ok: true, list, unread: list.filter(n => !n.read && !n.revoked).length, fired: fired.length });
+});
+
+route('POST', '/api/notifications/read', async (req, res, body) => {
+  const u = needAuth(req, res); if (!u) return;
+  const db = store.get();
+  (db.notifications || []).filter(n => n.userId === u.id).forEach(n => { n.read = true; });
+  store.save();
+  json(res, 200, { ok: true });
+});
+
+// A6.6 虚拟时钟（演示工具，只影响本人计划的时间判断，不参与业务权限分级）
+route('POST', '/api/demo/clock', async (req, res, body) => {
+  const u = needAuth(req, res); if (!u) return;
+  const r = body && body.reset ? plans.resetClock(u.id) : plans.advanceDays(u.id, Number(body && body.days) || 0);
+  gateway.audit(u.id, 'user', 'demo.clock', { days: body && body.days, reset: !!(body && body.reset) }, 'OK',
+    body && body.reset ? '演示时钟已重置' : `演示时钟推进 ${body && body.days || 0} 天（虚拟当前 ${r.virtualNow.slice(0, 10)}）`);
+  json(res, 200, { ok: true, clock: r, message: `当前虚拟日期 ${r.virtualNow.slice(0, 10)}` });
 });
 
 // ---------- 转账记录 ----------
