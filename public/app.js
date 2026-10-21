@@ -82,6 +82,9 @@ function renderHome(overview) {
     m.plan ? renderPlanCard(m) :
     m.loss ? renderLossCard(m) :
     m.lossReceipt ? renderLossReceipt(m) :
+    m.needPayPass ? renderPayPassCard(m) :
+    m.assessCard ? renderAssessCard(m) :
+    m.products ? renderProductsCard(m) :
     `<div class="msg ${m.role === 'user' ? 'user' : 'bot'}">
       <div class="avatar">${m.role === 'user' ? '😀' : '🤖'}</div>
       <div class="bubble">${esc(m.text)}</div>
@@ -89,6 +92,10 @@ function renderHome(overview) {
   renderShell(`
     <div class="page-title">智能助手</div>
     <div class="page-sub">Agent 只能「申请」，不能动钱 —— 它看不到你的密码、碰不到你的验证码，所有 P2 资金操作都得你本人双重验证；P3 高危操作它永久无权。</div>
+    ${S.user.hasPayPass === false ? `<div class="paypass-banner">
+      🔑 <b>还差一步</b>：设置支付密码后才能转账、买理财。
+      <button class="btn btn-primary btn-sm" style="margin-left:8px" data-act="go" data-arg="security">去设置</button>
+    </div>` : ''}
     <div class="card chat-box">
       <div style="display:flex;justify-content:space-between;padding:14px 16px 0;align-items:center">
         <div><b>${esc(S.user.name)}</b> <span class="muted">余额 ${yuan(overview.balance)} · 风险等级 ${S.user.riskLevel || '未测评'}</span> <span id="llmBadge" class="tag tag-gray">…</span></div>
@@ -114,6 +121,75 @@ function renderHome(overview) {
 }
 
 // 红色拦截卡：三要素 —— ① 什么攻击 ② 被哪一层拦 ③ 证据编号
+// ================= 支付密码设置卡（在办理动作时就地设置）=================
+function renderPayPassCard(m) {
+  return `<div class="msg bot">
+    <div class="avatar">🤖</div>
+    <div style="flex:1">
+      <div class="bubble">${esc(m.text)}</div>
+      <div class="card" style="margin-top:8px">
+        <b>🔑 设置支付密码</b>
+        <div class="muted" style="margin:4px 0 8px">6 位数字 · 与登录密码不同 · 助手无法读取</div>
+        <div class="grid2">
+          <div class="field"><label>新支付密码</label><input id="pp-new1" type="password" maxlength="6" inputmode="numeric"></div>
+          <div class="field"><label>再输一次</label><input id="pp-new2" type="password" maxlength="6" inputmode="numeric"></div>
+        </div>
+        <button class="btn btn-primary btn-sm" style="margin-top:8px" data-act="setPayPass">设置并继续</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ================= 风险测评卡（3 题，答完直接出产品）=================
+function renderAssessCard(m) {
+  const qs = (m.assessCard && m.assessCard.questions) || [];
+  const picked = Array.isArray(S.assess) ? S.assess : [];
+  const doneCount = picked.filter(x => x != null).length;
+  const rows = qs.map((q, i) => {
+    const cur = picked[i];
+    return `<div class="assess-q">
+      <div style="margin:8px 0 6px"><b>${i + 1}. ${esc(q.q)}</b></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${q.options.map(o => `<button class="btn ${cur === o.v ? 'btn-primary' : 'btn-outline'} btn-sm"
+          data-act="answerAssess" data-arg="${i}" data-arg2="${o.v}">${esc(o.t)}</button>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="msg bot">
+    <div class="avatar">🤖</div>
+    <div style="flex:1">
+      <div class="bubble">${esc(m.text)}</div>
+      <div class="card" style="margin-top:8px">
+        <b>📊 风险测评</b><span class="muted" style="margin-left:8px">${doneCount}/${qs.length}</span>
+        ${rows}
+      </div>
+    </div>
+  </div>`;
+}
+
+// ================= 产品对比卡（A5.2：收益 / 风险 / 期限 / 起投）=================
+function renderProductsCard(m) {
+  const list = m.products || [];
+  const rows = list.map(p => `<div class="prod-row ${p.recommended ? 'prod-pick' : ''}">
+      <div style="flex:1">
+        <b>${esc(p.name)}</b>${p.recommended ? ' <span class="pill pill-warn">推荐</span>' : ''}
+        <div class="muted">${esc(p.type)} · 起投 ${yuan(p.minCents || 0)} · ${esc(p.reason || '')}</div>
+      </div>
+      <div style="text-align:right;min-width:96px">
+        <div><b>${p.rate}%</b><span class="muted"> 参考年化</span></div>
+        <div class="muted">${esc(p.risk)} · ${esc(p.term)}</div>
+      </div>
+      <button class="btn btn-primary btn-sm" style="margin-left:8px" data-act="buyProduct" data-arg="${esc(p.id)}">买入</button>
+    </div>`).join('');
+  return `<div class="msg bot">
+    <div class="avatar">🤖</div>
+    <div style="flex:1">
+      <div class="bubble">${esc(m.text)}</div>
+      <div class="card" style="margin-top:8px"><b>📈 产品对比</b><div style="margin-top:8px">${rows}</div></div>
+    </div>
+  </div>`;
+}
+
 // ================= A4.3–A4.5 挂失评估卡 / 回执卡 =================
 function renderLossCard(m) {
   const a = m.loss || {};
@@ -316,10 +392,42 @@ async function sendChat(text) {
     if (!r.ok) { toast(r.message, 'err'); render(); return; }
     S.chat.push({ role: 'bot', text: r.text, blocked: r.type === 'blocked', approval: r.approval,
       layer: r.layer, attackType: r.attackType, ref: r.ref, auditId: r.auditId,
-      subscriptions: r.subscriptions || null, plan: r.plan || null });
+      subscriptions: r.subscriptions || null, plan: r.plan || null, loss: r.loss || null,
+      assessCard: r.assessCard || null, products: r.products || null, needPayPass: !!r.needPayPass });
     if (r.approval) refreshSMS();
   }
   render();
+}
+
+// 支付密码就地设置：成功后提示条消失，用户重说一次动作即可继续
+async function setPayPass() {
+  const a = ($('#pp-new1') || {}).value || '';
+  const b = ($('#pp-new2') || {}).value || '';
+  if (!/^\d{6}$/.test(a)) return toast('支付密码为 6 位数字', 'err');
+  if (a !== b) return toast('两次输入不一致', 'err');
+  const r = await api('/api/security/paypass', 'POST', { oldPayPass: '', payPassword: a });
+  toast(r.message, r.ok ? 'ok' : 'err');
+  if (r.ok) {
+    S.user.hasPayPass = true;
+    const idx = S.chat.findIndex(m => m.needPayPass);
+    if (idx >= 0) S.chat[idx] = { role: 'bot', text: '✅ 支付密码已设置。现在把刚才那笔操作重新说一次就能继续。' };
+    render();
+  }
+}
+
+// 风险测评卡：答完 3 题自动提交，然后重新请求推荐
+async function answerAssess(idx, val) {
+  if (!Array.isArray(S.assess)) S.assess = [];
+  S.assess[idx] = Number(val);
+  render();
+  if (S.assess.filter(x => x != null).length < 3) return;
+  const answers = S.assess.slice();
+  S.assess = null;
+  const r = await api('/api/wealth/assess', 'POST', { answers });
+  if (!r.ok) return toast(r.message, 'err');
+  S.user.riskLevel = r.level;
+  toast(r.message, 'ok');
+  await sendChat('推荐一下理财');
 }
 
 // A6.6 虚拟时钟：只影响本人计划的时间判断；推进后只生成建议卡，绝不自动执行
@@ -365,7 +473,8 @@ async function streamChat(msg, bubble) {
   if (!result) return null;
   return { role: 'bot', text: result.text || typed, blocked: result.type === 'blocked',
     approval: result.approval, layer: result.layer, attackType: result.attackType, ref: result.ref, auditId: result.auditId,
-    subscriptions: result.subscriptions || null, plan: result.plan || null, loss: result.loss || null };
+    subscriptions: result.subscriptions || null, plan: result.plan || null, loss: result.loss || null,
+    assessCard: result.assessCard || null, products: result.products || null, needPayPass: !!result.needPayPass };
 }
 async function confirmApproval(id, needSms, tamper) {
   const body = {};
@@ -947,6 +1056,9 @@ const ACTIONS = {
   lockBudget: (el, a, a2) => requestOps('escrow.hold', { planId: a, amount: String((Number(a2) || 20000) / 100) }),
   clockAdvance: (el, a) => advanceClock(Number(a) || 10, false),
   clockReset: () => advanceClock(0, true),
+  setPayPass: () => setPayPass(),
+  answerAssess: (el, a, a2) => answerAssess(Number(a), Number(a2)),
+  buyProduct: (el, a) => requestOps('wealth.subscribe', { productId: a, amount: '1000' }),
   reportLoss: (el, a, a2) => requestOps('card.reportLoss', a2 ? { cardId: a, migrateToCardId: a2 } : { cardId: a })
 };
 

@@ -240,3 +240,11 @@ input, select, textarea { font-family: var(--font); font-size: 14px; }
 .pill-warn{background:#F7C1C1;color:#791F1F}
 .plan-step{display:flex;gap:8px;align-items:flex-start;padding:6px 0;font-size:13px;border-bottom:1px dashed rgba(0,0,0,.06)}
 .plan-step:last-child{border-bottom:none}
+
+/* 支付密码提示条 / 测评卡 / 产品对比卡 */
+.paypass-banner{margin:10px 0;padding:10px 12px;border-radius:10px;background:#FAEEDA;border:1px solid #FAC775;color:#854F0B;font-size:13px}
+.assess-q{border-top:1px dashed rgba(0,0,0,.06);padding-top:4px}
+.assess-q:first-child{border-top:none}
+.prod-row{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid rgba(0,0,0,.06);font-size:13px}
+.prod-row:last-child{border-bottom:none}
+.prod-pick{background:#F1F7EE;border-radius:8px;padding:10px 8px}
