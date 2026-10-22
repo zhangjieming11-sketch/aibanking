@@ -79,6 +79,24 @@ function renderSMS() {
   <div class="body">${S.sms.length ? S.sms.map(s => `<div class="item"><div>【AgentBank】${esc(s.purpose)}验证码</div><div class="code">${esc(s.code)}</div><div style="color:#64748b">5 分钟内有效 · 演示环境不真实发送</div></div>`).join('') : '<div class="item" style="color:#64748b">暂无短信</div>'}</div>`;
 }
 
+// 同名歧义候选卡：把「哪一位」摆清楚，并给可点的按钮（点击 = 发送「第 N 位」）
+// 与系统提示一致：选择只决定"转给谁"，仍需走授权单双因子。
+function renderPayeeCandidates(m) {
+  const list = (m.candidates || []).map((c, i) => `<div class="payee-cand">
+    <div class="payee-cand-main">
+      <b>${esc(c.realName)}</b>
+      ${c.displayAlias && c.displayAlias !== c.realName ? `<span class="tag">代称「${esc(c.displayAlias)}」</span>` : ''}
+      ${c.trust === 'verified' ? '<span class="tag tag-green">✅ 已验证</span>' : '<span class="tag tag-orange">🔶 未验证</span>'}
+      <div class="payee-cand-sub">尾号 ${esc(c.accountTail || '—')} ｜ 手机 ${esc(c.phone || '—')}${c.note ? ' ｜ 备注：' + esc(c.note) : ''}</div>
+    </div>
+    <button class="btn btn-primary btn-sm" data-act="pickPayee" data-arg="${i + 1}">选这位</button>
+  </div>`).join('');
+  return `<div class="msg bot"><div class="avatar">🤖</div><div class="bubble">
+    <div style="white-space:pre-wrap">${esc(m.text)}</div>
+    <div class="payee-cands">${list}</div>
+  </div></div>`;
+}
+
 // ================= 首页：Agent 聊天 =================
 function renderHome(overview) {
   const msgs = S.chat.map(m => m.approval ? renderApprovalCard(m) :
@@ -90,6 +108,7 @@ function renderHome(overview) {
     m.needPayPass ? renderPayPassCard(m) :
     m.assessCard ? renderAssessCard(m) :
     m.products ? renderProductsCard(m) :
+    m.candidates ? renderPayeeCandidates(m) :
     `<div class="msg ${m.role === 'user' ? 'user' : 'bot'}">
       <div class="avatar">${m.role === 'user' ? '😀' : '🤖'}</div>
       <div class="bubble">${esc(m.text)}</div>
@@ -397,6 +416,7 @@ async function sendChat(text) {
     if (!r.ok) { toast(r.message, 'err'); render(); return; }
     S.chat.push({ role: 'bot', text: r.text, blocked: r.type === 'blocked', approval: r.approval,
       layer: r.layer, attackType: r.attackType, ref: r.ref, auditId: r.auditId,
+      candidates: r.type === 'payee_confirm' ? (r.candidates || []) : null,
       subscriptions: r.subscriptions || null, plan: r.plan || null, loss: r.loss || null,
       assessCard: r.assessCard || null, products: r.products || null, needPayPass: !!r.needPayPass });
     if (r.approval) refreshSMS();
@@ -478,6 +498,7 @@ async function streamChat(msg, bubble) {
   if (!result) return null;
   return { role: 'bot', text: result.text || typed, blocked: result.type === 'blocked',
     approval: result.approval, layer: result.layer, attackType: result.attackType, ref: result.ref, auditId: result.auditId,
+    candidates: result.type === 'payee_confirm' ? (result.candidates || []) : null,
     subscriptions: result.subscriptions || null, plan: result.plan || null, loss: result.loss || null,
     assessCard: result.assessCard || null, products: result.products || null, needPayPass: !!result.needPayPass };
 }
@@ -1126,6 +1147,8 @@ const ACTIONS = {
   tourPrev: () => tourPrev(),
   attackTest: () => attackTest(),
   sendChat: (el, a) => sendChat(a || undefined),
+  // 同名歧义：点「选这位」等价于说「第 N 位」，走同一条后端路径（不新增接口）。
+  pickPayee: (el, a) => sendChat('第 ' + a + ' 位'),
   confirmApproval: (el, a, a2, a3) => confirmApproval(a, a2 === 'true', a3 === '1'),
   rejectApproval: (el, a) => rejectApproval(a),
   showUpload: () => showUpload(),
