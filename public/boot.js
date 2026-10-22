@@ -18,6 +18,7 @@ const S = {  // 全局状态
   chat: [],            // {role:'user'|'bot'|'blocked', text}
   sms: [],             // 演示短信
   collapsed: false,
+  depOpen: false,      // 首页「存入」输入区展开状态
   pendingPayee: null,  // 待确认的收款人候选（歧义/谐音时使用）
   // E9 投屏演示模式：大字号 + 高对比。可用侧栏按钮切换，也可用 ?proj=1 直接进入
   projection: LS.get('ab_proj') === '1' || /[?&]proj=1/.test(location.search),

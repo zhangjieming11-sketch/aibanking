@@ -125,8 +125,16 @@ function renderHome(overview) {
         <div><b>${esc(S.user.name)}</b> <span class="muted">余额 ${yuan(overview.balance)} · 风险等级 ${S.user.riskLevel || '未测评'}</span> <span id="llmBadge" class="tag tag-gray">…</span></div>
         <div><button class="btn btn-outline btn-sm" data-act="clockAdvance" data-arg="10">⏩ 时间+10天</button>
         <button class="btn btn-outline btn-sm" data-act="clockReset">↺ 重置时间</button>
+        <button class="btn btn-primary btn-sm" data-act="toggleDeposit">💰 存入</button>
         <button class="btn btn-danger btn-sm" data-act="attackTest">⚡ 注入攻击演示</button></div>
       </div>
+      ${S.depOpen ? `<div style="padding:8px 16px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input id="dep-amt" placeholder="存入金额（元）" style="width:150px" inputmode="decimal">
+        <button class="btn btn-primary btn-sm" data-act="doDeposit">确认存入</button>
+        <span class="chip" data-act="depQuick" data-arg="1000">+1,000</span>
+        <span class="chip" data-act="depQuick" data-arg="10000">+10,000</span>
+        <span class="muted">单笔上限 ¥50,000 · 入金不进 Agent 权限白名单</span>
+      </div>` : ''}
       <div class="chat-messages" id="chatMsgs">${msgs || '<div class="msg bot"><div class="avatar">🤖</div><div class="bubble">你好！我是你的银行智能助手 🛡️<br><br>试试这些指令：<br>· 「查一下余额」<br>· 「给小红转 100 元」<br>· 「每月给房东转 2000 元」<br>· 「和小红 AA 吃饭总共 300」<br>· 「推荐一下理财」<br>· 「冻结日常卡」<br>· 「修改支付密码」（会被拦截 😏）</div></div>'}</div>
       <div class="quick-chips">
         <span class="chip" data-act="sendChat" data-arg="查一下余额">查余额</span>
@@ -1146,6 +1154,14 @@ const ACTIONS = {
   tourNext: () => tourNext(),
   tourPrev: () => tourPrev(),
   attackTest: () => attackTest(),
+  // —— 自助存入（新账户余额 ¥0，本人入金入口；不入 Agent 白名单）——
+  toggleDeposit: () => { S.depOpen = !S.depOpen; render(); if (S.depOpen) setTimeout(() => { const i = $('#dep-amt'); if (i) i.focus(); }, 0); },
+  depQuick: (el, a) => { const i = $('#dep-amt'); if (i) i.value = a; },
+  doDeposit: async () => {
+    const r = await api('/api/account/deposit', 'POST', { amount: $('#dep-amt').value });
+    toast(r.message, r.ok ? 'ok' : 'err');
+    if (r.ok) { S.depOpen = false; render(); }
+  },
   sendChat: (el, a) => sendChat(a || undefined),
   // 同名歧义：点「选这位」等价于说「第 N 位」，走同一条后端路径（不新增接口）。
   pickPayee: (el, a) => sendChat('第 ' + a + ' 位'),

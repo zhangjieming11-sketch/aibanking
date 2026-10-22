@@ -113,16 +113,14 @@ route('POST', '/api/auth/register', async (req, res, body) => {
     limits: { single: 5000000, daily: 20000000 }, payeeBlacklist: ['黑客', 'hacker']
   };
   db.users.push(user);
-  db.accounts.push({ userId: user.id, balance: 1000000 }); // 新户送 ¥10,000 演示金
+  // —— 全新账户：余额 ¥0、通讯录为空、订阅为空 ——
+  // 所有数据必须由用户自己产生，不再预置任何演示内容（演示数据只在演示账户 13800000001/13800000002 上）。
+  // 需要的演示资金由用户本人在首页「存入」自助入金（该入口不进 Agent 白名单）。
+  db.accounts.push({ userId: user.id, balance: 0 });
   db.cards.push({ id: 'c' + uid().slice(0, 6), userId: user.id, name: '默认储蓄卡', number: '6222' + String(Math.floor(Math.random() * 1e12)).padStart(12, '0'), frozen: false, isDefault: true });
-  // 新用户同样预置演示通讯录，否则收款人解析层会把所有转账都判为「无法解析」
-  db.contacts.push(...contacts.seedFor(user.id));
-  // A3 演示订阅（标记 origin=demo，与用户真实数据可区分）
-  if (!db.subscriptions) db.subscriptions = [];
-  db.subscriptions.push(...subscriptions.seedFor(user.id));
-  gateway.audit(user.id, 'user', 'auth.register', { phone: maskPhone(phone) }, 'OK', '新用户注册（赠送演示金 ¥10,000.00）');
+  gateway.audit(user.id, 'user', 'auth.register', { phone: maskPhone(phone) }, 'OK', '新用户注册（全新账户：余额 ¥0.00、通讯录与订阅为空）');
   store.save();
-  json(res, 200, { ok: true, message: '注册成功，请登录', next: '建议登录后先设置支付密码（安全中心）' });
+  json(res, 200, { ok: true, message: '注册成功，请登录', next: '新账户余额为 ¥0.00，登录后可在首页「💰 存入」自助入金开始体验' });
 });
 
 route('POST', '/api/auth/login', async (req, res, body) => {
@@ -309,7 +307,7 @@ route('GET', '/api/bills/monthly', async (req, res) => {
   const u = needAuth(req, res); if (!u) return;
   const db = store.get();
   const month = req.url.searchParams.get('month') || new Date().toISOString().slice(0, 7);
-  const bills = db.bills.filter(b => b.userId === u.id && b.date.startsWith(month));
+  const bills = db.bills.filter(b => b.userId === u.id && b.date.startsWith(month) && b.source !== 'deposit'); // 排除自助入金（非支出）
   const byCategory = {}, byDay = {}, merchants = {};
   bills.forEach(b => {
     byCategory[b.category] = (byCategory[b.category] || 0) + b.amount;
@@ -396,6 +394,40 @@ route('POST', '/api/wealth/assess', async (req, res, body) => {
   gateway.audit(u.id, 'user', 'risk.assess', { score, level }, 'OK', `完成风险测评：${level}（适当性匹配基准确立）`);
   store.save();
   json(res, 200, { ok: true, level, message: `测评完成：你的风险等级为 ${level}（C1 保守型 ~ C5 激进型）。超出等级的产品将被适当性规则拦截。` });
+});
+
+// ---------- 自助存入（新账户入金入口；不进 Agent 白名单，Agent 无权调用）----------
+// 新注册账户余额为 ¥0，用户可在首页「存入」自助入金后再体验转账/理财。
+// 这是入金不是支出，故 source 标记为 'deposit'，月度账单统计会将其排除。
+const DEPOSIT_MAX_CENTS = 5000000;        // 单笔上限 ¥50,000
+const DEPOSIT_DAILY_MAX_CENTS = 20000000; // 单日累计上限 ¥200,000
+route('POST', '/api/account/deposit', async (req, res, body) => {
+  const u = needAuth(req, res); if (!u) return;
+  const db = store.get();
+  const amount = toCents((body && body.amount) != null ? body.amount : 0);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return json(res, 400, { ok: false, message: '存入金额必须为正数（单位：元）' });
+  }
+  if (amount > DEPOSIT_MAX_CENTS) {
+    gateway.audit(u.id, 'user', 'account.deposit', { amountCents: amount }, 'BLOCKED', `存入金额超单笔上限 ¥${yuan(DEPOSIT_MAX_CENTS)}`);
+    return json(res, 400, { ok: false, message: `单笔存入上限 ¥${yuan(DEPOSIT_MAX_CENTS)}` });
+  }
+  const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
+  const todaySum = (db.bills || []).filter(b => b.userId === u.id && b.source === 'deposit' && (b.createdAt || 0) >= dayStart.getTime())
+    .reduce((s, b) => s + b.amount, 0);
+  if (todaySum + amount > DEPOSIT_DAILY_MAX_CENTS) {
+    gateway.audit(u.id, 'user', 'account.deposit', { amountCents: amount }, 'BLOCKED', `存入金额超单日累计上限 ¥${yuan(DEPOSIT_DAILY_MAX_CENTS)}`);
+    return json(res, 400, { ok: false, message: `单日累计存入上限 ¥${yuan(DEPOSIT_DAILY_MAX_CENTS)}（今日已存 ¥${yuan(todaySum)}）` });
+  }
+  const acc = db.accounts.find(a => a.userId === u.id);
+  if (!acc) return json(res, 404, { ok: false, message: '账户不存在' });
+  const now = Date.now();
+  acc.balance += amount;
+  db.bills.push({ id: 'b' + uid().slice(0, 8), userId: u.id, date: new Date(now).toISOString().slice(0, 10),
+    merchant: '账户存入', category: '存入', amount, source: 'deposit', note: '自助入金', createdAt: now });
+  gateway.audit(u.id, 'user', 'account.deposit', { amountCents: amount }, 'OK', `存入 ¥${yuan(amount)}（当前余额 ¥${yuan(acc.balance)}）`);
+  store.save();
+  json(res, 200, { ok: true, message: `存入成功：¥${yuan(amount)}（当前余额 ¥${yuan(acc.balance)}）`, balance: acc.balance });
 });
 
 // ---------- 卡片（用户本人通道；Agent 通道走 agent/chat）----------
