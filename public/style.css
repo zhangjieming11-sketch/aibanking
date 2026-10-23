@@ -86,6 +86,18 @@
   --sidebar-w: 208px;
   --sidebar-w-collapsed: 64px;
   --topbar-h: 52px;
+
+  /* ------------------------------------------------------------------
+     V4 仪表窗令牌：只允许在安全中心的 .inst 内部使用
+     浅色层的「85% 中性 + 12% 蓝 + 3% 金」预算不受这组颜色影响
+     ------------------------------------------------------------------ */
+  --inst-bg: #14161B;      /* 冷调炭黑：比纯黑亮一档，投影不发脏 */
+  --inst-bg-2: #1B1E25;    /* 指标格底色：靠明度差而非边框分格 */
+  --inst-line: #2C3038;    /* 1px 分隔线 */
+  --inst-cyan: #4FD1C5;    /* 唯一信号色：正常/通过/完整 */
+  --inst-gold: #E8A33D;    /* 警示：取暖金家族，与全站 3% 暖金桥接 */
+  --inst-red: #F0736A;     /* 危险：深底需提亮，否则糊成一团 */
+  --inst-ink: #A8ADB8;     /* 说明文字：不用纯白，避免发光晕 */
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -100,7 +112,7 @@ body {
 button { font-family: var(--font); cursor: pointer; border: none; background: none; }
 input, select, textarea { font-family: var(--font); font-size: 14px; color: var(--text); }
 /* 金额类一律等宽，避免跳动 */
-.stat-card .value, .cockpit-stat .v, .metric-band .v, .topbar-balance { font-variant-numeric: tabular-nums; }
+.stat-card .value, .inst-cell .v, .metric-band .v, .topbar-balance { font-variant-numeric: tabular-nums; }
 
 /* ==========================================================================
    登录页 —— 浅色渐变 + 白卡，去掉原来的紫蓝大渐变
@@ -603,56 +615,107 @@ input, select, textarea { font-family: var(--font); font-size: 14px; color: var(
 ::-webkit-scrollbar-track { background: transparent; }
 
 /* ==========================================================================
-   安全驾驶舱：深色渐变 → 暖白 + 3px 左色条
-   语义靠色条承载（3px 不打断明度节奏），数字靠字号与等宽字体发力
+   仪表窗（Instrument Window）—— 安全中心专属，其他页面不得复用
+   --------------------------------------------------------------------------
+   不是「整页变深色」，是浅色墙面上嵌一块深色仪表屏。
+   五条硬规则：
+   1) 只做数据面，面板内零可点击元素（操作按钮一律放在面板外的浅色区）
+   2) 不铺满：上下留浅色内边距，整页首尾必须是浅色
+   3) 只新增青绿一个颜色，且不出面板
+   4) 尺寸令牌与全局完全共用（圆角就是 --r-lg），不引入第二套
+   5) 结构同源：格子沿用浅色统计卡的 .k / .v / .s 三段结构，只换皮
    ========================================================================== */
-.cockpit {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--red);
+.inst {
+  position: relative;
+  background: var(--inst-bg);
+  border: 1px solid rgba(20, 22, 27, .10);
   border-radius: var(--r-lg);
-  padding: 20px 22px;
-  color: var(--ink-800);
-  margin-bottom: 18px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(20, 22, 27, .14), 0 18px 44px rgba(20, 22, 27, .16);
 }
-.cockpit-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
-.cockpit-head h2 { font-size: 15px; color: var(--ink-900); font-weight: 700; letter-spacing: -.01em; }
-.cockpit-head .live {
-  margin-left: auto; font-size: 11px; color: var(--green);
-  display: flex; align-items: center; gap: 6px;
+/* 24px 极淡网格：科技感的主要来源，比任何发光效果都有效 */
+.inst::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, .028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, .028) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
-.cockpit-head .live .dot {
-  width: 6px; height: 6px; border-radius: 50%; background: var(--green);
-  box-shadow: 0 0 0 0 rgba(18, 128, 92, .5); animation: pulse 1.8s infinite;
+/* 顶部光带：暗示「这条仪表在通电运行」 */
+.inst::after {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--inst-cyan), transparent);
+  opacity: .75;
 }
-@keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(18, 128, 92, .5); }
-  70% { box-shadow: 0 0 0 7px rgba(18, 128, 92, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(18, 128, 92, 0); }
+.inst-in { position: relative; z-index: 1; padding: 16px 20px 18px; }
+.inst-top { display: flex; align-items: center; gap: 9px; padding-bottom: 13px; border-bottom: 1px solid var(--inst-line); }
+.inst-top .t { font-size: 13.5px; font-weight: 650; color: #F2F4F7; letter-spacing: .01em; }
+.inst-top .sub {
+  font-family: var(--mono); font-size: 10px; color: #5C626E;
+  letter-spacing: .10em; text-transform: uppercase;
 }
-.cockpit-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-@media (max-width: 900px) { .cockpit-grid { grid-template-columns: repeat(2, 1fr); } }
-.cockpit-stat {
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  padding: 14px 16px;
+.inst-top .live {
+  margin-left: auto; display: flex; align-items: center; gap: 5px;
+  font-family: var(--mono); font-size: 10px; color: var(--inst-cyan); letter-spacing: .10em;
 }
-.cockpit-stat .k { font-size: 11px; color: var(--text-3); margin-bottom: 8px; }
-.cockpit-stat .v { font-size: 24px; font-weight: 700; color: var(--ink-900); line-height: 1.1; font-family: var(--num); letter-spacing: -.02em; }
-.cockpit-stat .v small { font-size: 12px; font-weight: 500; color: var(--text-3); font-family: var(--font); margin-left: 2px; }
-.cockpit-stat .s { font-size: 11px; margin-top: 6px; color: var(--text-3); }
-.cockpit-stat.good .v { color: var(--green); }
-.cockpit-stat.bad .v { color: var(--red); }
-.cockpit-chain {
-  margin-top: 14px; padding-top: 12px;
-  border-top: 1px solid var(--line);
-  font-size: 11.5px; color: var(--text-2);
+.inst-top .live .dot {
+  width: 5px; height: 5px; border-radius: 50%; background: var(--inst-cyan);
+  box-shadow: 0 0 8px var(--inst-cyan); animation: instPulse 1.8s infinite;
+}
+@keyframes instPulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--inst-cyan); }
+  50% { opacity: .45; box-shadow: 0 0 2px var(--inst-cyan); }
+}
+.inst-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+  background: var(--inst-line); margin-top: 14px;
+  border-radius: 8px; overflow: hidden;
+}
+@media (max-width: 900px) { .inst-grid { grid-template-columns: repeat(2, 1fr); } }
+.inst-cell { background: var(--inst-bg-2); padding: 13px 15px; }
+.inst-cell .k { font-size: 11px; color: var(--inst-ink); margin-bottom: 6px; letter-spacing: .02em; }
+.inst-cell .v {
+  font-family: var(--num); font-size: 25px; font-weight: 600; color: #F2F4F7;
+  line-height: 1.12; letter-spacing: -.02em; font-variant-numeric: tabular-nums;
+}
+.inst-cell .v small { font-size: 11.5px; color: var(--inst-ink); font-weight: 400; font-family: var(--font); margin-left: 1px; }
+.inst-cell .s { font-size: 10.5px; margin-top: 5px; color: var(--inst-ink); opacity: .82; }
+.inst-cell.ok .v { color: var(--inst-cyan); }
+.inst-cell.wn .v { color: var(--inst-gold); }
+.inst-cell.bd .v { color: var(--inst-red); }
+.inst-foot {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--inst-line);
+}
+.inst-foot .lb { font-size: 10.5px; color: var(--inst-ink); letter-spacing: .02em; }
+.inst-foot code {
+  background: rgba(79, 209, 197, .10); color: var(--inst-cyan);
+  font-family: var(--mono); font-size: 11px; padding: 2px 8px;
+  border-radius: var(--r-sm); letter-spacing: .02em;
+}
+.inst-foot .note { font-size: 10px; color: var(--inst-ink); opacity: .72; }
+
+/* 面板外的操作区：深色里不放按钮，操作一律在浅色层 */
+.inst-actions {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 12px 0 22px;
 }
-.cockpit-chain code {
-  background: var(--surface-3); padding: 2px 8px; border-radius: var(--r-sm);
-  color: var(--ink-700); font-family: var(--mono); font-size: 11px;
+.inst-actions .hint { font-size: 11.5px; color: var(--text-3); }
+
+/* 权限矩阵：阶梯式，左侧色条从灰到红表达危险度递增 */
+.perm-matrix { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 18px 20px; margin-bottom: 16px; }
+.perm-matrix-head { display: flex; align-items: baseline; gap: 9px; margin-bottom: 4px; }
+.perm-matrix-head b { font-size: 14px; font-weight: 650; color: var(--ink-900); }
+.perm-matrix-sub { font-size: 11.5px; color: var(--text-3); margin-bottom: 6px; }
+.perm-row2 { display: flex; gap: 13px; align-items: flex-start; padding: 13px 0; border-top: 1px solid var(--line); }
+.perm-row2 .bar { width: 3px; align-self: stretch; border-radius: 2px; flex-shrink: 0; }
+.perm-row2 .lv { font-family: var(--mono); font-size: 10.5px; font-weight: 600; width: 24px; padding-top: 3px; flex-shrink: 0; }
+.perm-row2 .bd { flex: 1; min-width: 0; }
+.perm-row2 .nm { font-size: 13px; font-weight: 600; color: var(--ink-800); margin-bottom: 5px; }
+.perm-row2 .it { font-size: 12px; color: var(--text-2); display: flex; gap: 8px; align-items: baseline; margin-top: 3px; }
+.perm-row2 .it code {
+  min-width: 92px; text-align: center; background: var(--surface-3);
+  font-family: var(--mono); font-size: 10.5px; padding: 1px 6px; border-radius: 4px; color: var(--ink-700);
 }
 
 /* ==========================================================================
@@ -883,6 +946,150 @@ body.projection .topbar { border-bottom-color: #C9C5BE; }
 .empty b { display: block; color: var(--ink-700); font-size: 14px; margin-bottom: 6px; font-weight: 600; }
 
 /* ==========================================================================
+   页头：标题 + 状态胶囊（替代长句副标题）
+   ========================================================================== */
+.page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+.page-head .page-title { margin-bottom: 3px; }
+.page-head .page-sub { margin-bottom: 0; }
+.status-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600; padding: 5px 12px;
+  border-radius: var(--r-full); white-space: nowrap;
+}
+.status-pill .d { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.status-pill.ok { background: var(--green-soft); color: var(--green); }
+.status-pill.bad { background: var(--red-soft); color: var(--red); }
+
+/* ==========================================================================
+   引导组（上手引导）—— 从属定位
+   --------------------------------------------------------------------------
+   位置：主导航之后、底部工具区之前。不能和工具区混排：
+   工具区是常设控件（图标），引导是内容入口（点进去是一个页面）。
+   三条层级信号：字号降一档 / 图标降饱和 / 展开后左缩进 16px + 1px 竖线
+   ========================================================================== */
+.nav-guide { padding: 0 10px; margin-top: 4px; }
+.nav-guide-head {
+  display: flex; align-items: center; gap: 7px;
+  padding: 8px 11px; border-radius: var(--r-md);
+  font-size: 12px; color: var(--ink-400); font-weight: 500;
+  cursor: pointer; user-select: none;
+  transition: background .16s, color .16s;
+}
+.nav-guide-head:hover { background: var(--surface-3); color: var(--ink-600); }
+.nav-guide-head .chev {
+  font-size: 9px; color: var(--ink-300); transition: transform .18s;
+  display: inline-block; width: 8px; text-align: center;
+}
+.nav-guide.open .nav-guide-head .chev { transform: rotate(90deg); }
+.nav-guide-head .cnt {
+  margin-left: auto; font-family: var(--mono); font-size: 9.5px;
+  background: var(--surface-3); color: var(--ink-400);
+  padding: 1px 6px; border-radius: var(--r-full); min-width: 17px; text-align: center;
+}
+/* 折叠态才显示图标（展开态用文字就够，图标会抢注意力） */
+.nav-guide-head .gi { display: none; }
+.nav-guide-head .gi svg { width: 15px; height: 15px; stroke: currentColor; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.nav-guide-body {
+  display: none;
+  margin-left: 16px; padding-left: 6px;
+  border-left: 1px solid var(--line-strong);
+}
+.nav-guide.open .nav-guide-body { display: block; }
+.nav-guide-body .nav-item {
+  font-size: 12.5px; color: var(--ink-500); padding: 6px 9px;
+}
+.nav-guide-body .nav-item .icon { width: 15px; height: 15px; }
+.nav-guide-body .nav-item .icon svg { width: 14px; height: 14px; stroke-width: 1.5; }
+.nav-guide-body .nav-item.active { color: var(--brand); background: var(--brand-soft); }
+
+/* ==========================================================================
+   折叠组件（fold）—— 输入框默认收起，点击展开
+   --------------------------------------------------------------------------
+   语义：填写即配置 → 可折；填写即授权（授权确认卡/风险测评/登录）→ 不可折
+   约束：折叠态必须显示当前值，否则用户为了看一眼数字还得展开，等于没省
+   ========================================================================== */
+.fold {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+.fold + .fold { margin-top: 8px; }
+.fold-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 16px; min-height: 48px;
+  cursor: pointer; user-select: none;
+  transition: background .16s;
+}
+.fold-head:hover { background: var(--surface-2); }
+.fold-head .chev {
+  font-size: 10px; color: var(--ink-300); flex-shrink: 0;
+  transition: transform .18s; display: inline-block; width: 9px;
+}
+.fold.open .fold-head .chev { transform: rotate(90deg); }
+.fold-head .ttl { font-size: 13px; font-weight: 600; color: var(--ink-800); min-width: 84px; flex-shrink: 0; }
+.fold-head .val { flex: 1; min-width: 0; font-size: 12.5px; color: var(--text-3); font-family: var(--num); font-variant-numeric: tabular-nums; }
+.fold-head .val em { font-style: normal; color: var(--ink-700); }
+.fold-head .act { font-size: 12px; color: var(--brand); font-weight: 600; flex-shrink: 0; }
+.fold.open .fold-head .act { color: var(--text-3); }
+.fold-head .dirty {
+  width: 5px; height: 5px; border-radius: 50%; background: var(--amber); flex-shrink: 0;
+}
+/* 展开区：背景比卡片浅一档 + 顶部虚线，表达「从上面那行长出来的」 */
+.fold-body {
+  display: none; padding: 2px 16px 15px;
+  border-top: 1px dashed var(--line);
+  background: var(--surface-2);
+}
+.fold.open .fold-body { display: block; }
+.fold-body .fold-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; padding-top: 12px; }
+.fold-body .btns { display: flex; gap: 8px; align-items: flex-end; }
+.fold-body .hint-line { font-size: 11px; color: var(--text-3); padding-top: 8px; }
+
+/* 任务 tab：转账页三张表单只渲染当前那张 */
+.task-tabs {
+  display: inline-flex; gap: 2px; background: var(--surface-3);
+  padding: 3px; border-radius: var(--r-md); margin-bottom: 14px;
+}
+.task-tab {
+  font-size: 12.5px; font-weight: 500; color: var(--text-3);
+  padding: 6px 15px; border-radius: 7px; cursor: pointer;
+  transition: background .16s, color .16s;
+}
+.task-tab:hover { color: var(--ink-700); }
+.task-tab.on { background: #fff; color: var(--ink-900); font-weight: 600; box-shadow: var(--sh-xs); }
+
+/* ==========================================================================
+   黄金轨迹：7 张卡片墙 → 7 行目录
+   选项超过 5 个且高度同质时，列表永远胜过卡片
+   ========================================================================== */
+.trace-list { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
+.trace-row { border-bottom: 1px solid var(--line); }
+.trace-row:last-child { border-bottom: none; }
+.trace-row-head {
+  display: flex; align-items: center; gap: 11px;
+  padding: 12px 16px; min-height: 48px; cursor: pointer;
+  transition: background .16s;
+}
+.trace-row-head:hover { background: var(--surface-2); }
+.trace-row-head .no {
+  width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
+  background: var(--surface-3); color: var(--ink-500);
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.trace-row.active .trace-row-head .no { background: var(--brand); color: #fff; }
+.trace-row-head .tx { flex: 1; min-width: 0; }
+.trace-row-head .tt { font-size: 13px; font-weight: 600; color: var(--ink-800); }
+.trace-row-head .mt { font-size: 10.5px; color: var(--text-3); margin-top: 1px; }
+.trace-row-head .go { font-size: 12px; color: var(--brand); font-weight: 600; flex-shrink: 0; }
+.trace-row-head .chev { font-size: 10px; color: var(--ink-300); transition: transform .18s; display: inline-block; width: 9px; text-align: center; }
+.trace-row.open .trace-row-head .chev { transform: rotate(90deg); }
+.trace-row-body { display: none; padding: 0 16px 16px 47px; }
+.trace-row.open .trace-row-body { display: block; }
+.trace-row-body .why { font-size: 12.5px; color: var(--text-2); line-height: 1.72; margin-bottom: 10px; }
+
+/* ==========================================================================
    折叠态与窄屏适配
    ========================================================================== */
 /* 折叠后只留图标：隐藏文字、居中图标，并把折叠按钮让到 logo 上方 */
@@ -893,6 +1100,15 @@ body.projection .topbar { border-bottom-color: #C9C5BE; }
 .sidebar.collapsed .nav-sep { margin: 8px 10px; }
 .sidebar.collapsed .bottom { flex-direction: column; gap: 4px; }
 .sidebar.collapsed .user-chip { justify-content: center; padding: 4px; }
+/* 引导组在折叠态只留一个图标，不显示计数与文字 */
+.sidebar.collapsed .nav-guide { padding: 0 8px; }
+.sidebar.collapsed .nav-guide-head { justify-content: center; padding: 9px 0; }
+.sidebar.collapsed .nav-guide-head .cnt,
+.sidebar.collapsed .nav-guide-head > span:not(.chev) { display: none; }
+.sidebar.collapsed .nav-guide-head > span.gi { display: flex; color: var(--ink-400); }
+.sidebar.collapsed .nav-guide-head .chev { display: none; }
+.sidebar.collapsed .nav-guide-body { margin-left: 0; padding-left: 0; border-left: none; }
+.sidebar.collapsed .nav-guide-body .nav-item { justify-content: center; padding: 8px 0; }
 
 /* 顶栏在窄屏下隐藏次要状态，保证主操作不被挤出 */
 @media (max-width: 1080px) {

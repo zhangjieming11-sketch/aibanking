@@ -44,14 +44,23 @@ const I = {
   shield: '<svg viewBox="0 0 24 24"><path d="M12 2.6L4.6 5.6v5.6c0 4.7 3.1 9 7.4 10.2 4.3-1.2 7.4-5.5 7.4-10.2V5.6L12 2.6z"/><path d="M9.2 11.8l2 2 3.6-3.8"/></svg>',
   play: '<svg viewBox="0 0 24 24"><path d="M6 4.5l13 7.5-13 7.5V4.5z"/></svg>'
 };
+// ---- V4 导航分层 ----
+// NAV：真正的功能入口（用户每天用的）
+// GUIDE：引导类内容（教用户认识产品）。默认收起，从属于 NAV 之后。
+// 两者不能混排：工具区是常设控件（图标），引导是内容入口（点进去是一个页面）
 const NAV = [
   { group: '总览', items: [{ id: 'home', icon: I.chat, label: '智能助手' }] },
   { group: '账户', items: [{ id: 'bills', icon: I.chart, label: '账单' }, { id: 'cards', icon: I.card, label: '卡片' }] },
   { group: '资金', items: [{ id: 'transfer', icon: I.transfer, label: '转账' }, { id: 'wealth', icon: I.wealth, label: '理财' }] },
-  { group: '安全', items: [{ id: 'contacts', icon: I.contacts, label: '收款人通讯录' }, { id: 'security', icon: I.shield, label: '安全中心' }] },
-  // E6 黄金轨迹：答辩兜底，断网可回放
-  { group: '演示', items: [{ id: 'traces', icon: I.play, label: '黄金轨迹' }] }
+  { group: '安全', items: [{ id: 'contacts', icon: I.contacts, label: '收款人通讯录' }, { id: 'security', icon: I.shield, label: '安全中心' }] }
 ];
+// 引导组：两者图标统一为 shield / play，走各自的 data-act，逻辑不变
+const GUIDE = [
+  { id: 'tour', icon: I.shield, label: '90 秒安全导览', act: 'startTour' },
+  { id: 'traces', icon: I.play, label: '黄金轨迹', act: 'go', arg: 'traces' }
+];
+// 黄金轨迹目录行：哪些行的 why 说明是展开的
+if (!S.traceWhy) S.traceWhy = {};
 function renderShell(contentHTML) {
   const ov = S.ov || {};
   app.innerHTML = `
@@ -59,8 +68,19 @@ function renderShell(contentHTML) {
     <div class="sidebar ${S.collapsed ? 'collapsed' : ''}">
       <button class="collapse-btn" data-act="toggleSidebar" title="${S.collapsed ? '展开侧栏' : '收起侧栏'}">${S.collapsed ? '»' : '«'}</button>
       <div class="logo"><svg class="shield" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3z"/><path d="M9 12l2 2 4-4" fill="none"/></svg><span>${S.collapsed ? '' : 'AgentBank'}</span></div>
-      ${NAV.map((g, gi) => `${gi === NAV.length - 1 ? '<div class="nav-sep"></div>' : ''}${g.items.map(i => `<div class="nav-item ${S.tab === i.id ? 'active' : ''}" data-act="go" data-arg="${i.id}"><span class="icon">${i.icon}</span><span>${i.label}</span></div>`).join('')}`).join('')}
-      ${S.collapsed ? '' : `<div class="nav-item" data-act="startTour"><span class="icon">${I.shield}</span><span>90 秒安全导览</span></div>`}
+      ${NAV.map((g, gi) => `${gi > 0 ? '<div class="nav-sep"></div>' : ''}${g.items.map(i => `<div class="nav-item ${S.tab === i.id ? 'active' : ''}" data-act="go" data-arg="${i.id}"><span class="icon">${i.icon}</span><span>${i.label}</span></div>`).join('')}`).join('')}
+      ${/* 引导组：从属定位 —— 12px 灰字、默认收起、展开后左缩进 + 竖线 */''}
+      <div class="nav-guide ${S.guideOpen ? 'open' : ''}">
+        <div class="nav-guide-head" data-act="toggleGuide" title="上手引导">
+          <span class="chev">›</span>
+          <span class="icon gi">${I.shield}</span>
+          <span>上手引导</span>
+          <span class="cnt">${GUIDE.length}</span>
+        </div>
+        <div class="nav-guide-body">
+          ${GUIDE.map(i => `<div class="nav-item ${S.tab === i.id ? 'active' : ''}" data-act="${i.act}"${i.arg ? ` data-arg="${i.arg}"` : ''}><span class="icon">${i.icon}</span><span>${i.label}</span></div>`).join('')}
+        </div>
+      </div>
       <div class="bottom">
         <button class="proj-btn ${S.projection ? 'on' : ''}" data-act="toggleProjection" title="投屏演示模式：字号放大、对比度提高">🎬</button>
         <div class="user-chip" data-act="doLogout" title="退出登录">
@@ -661,29 +681,63 @@ async function renderTransfer() {
   const [transfers, scheduled, aa] = await Promise.all([api('/api/transfers'), api('/api/scheduled'), api('/api/aa')]);
   renderShell(`
     <div class="page-title">转账</div>
-    <div class="page-sub">普通转账 · 定时转账 · AA 收款 —— 全部经由权限网关验证</div>
-    <div class="grid grid-3">
-      <div class="card">
-        <b>💸 普通转账</b><div class="muted" style="margin:6px 0 12px">P2 资金操作 · 支付密码 + 短信验证码</div>
-        <div class="field"><label>收款人</label><input id="tf-name" placeholder="如：小红"></div>
-        <div class="field" style="margin-top:8px"><label>金额（元）</label><input id="tf-amount" type="number" placeholder="100"></div>
-        <button class="btn btn-primary" style="margin-top:14px;width:100%" data-act="opTransfer">发起转账</button>
-      </div>
-      <div class="card">
-        <b>⏰ 定时转账</b><div class="muted" style="margin:6px 0 12px">P1 确认创建 · 附带可撤销的持续性授权</div>
-        <div class="field"><label>收款人</label><input id="sd-name" placeholder="如：房东"></div>
-        <div class="field" style="margin-top:8px"><label>每期金额（元）</label><input id="sd-amount" type="number" placeholder="2000"></div>
-        <div class="field" style="margin-top:8px"><label>频率</label><select id="sd-freq"><option value="once">单次（演示：1分钟后自动执行）</option><option value="daily">每天</option><option value="weekly">每周</option><option value="monthly">每月</option></select></div>
-        <button class="btn btn-primary" style="margin-top:14px;width:100%" data-act="opScheduled">创建定时转账</button>
-      </div>
-      <div class="card">
-        <b>🧾 AA 收款</b><div class="muted" style="margin:6px 0 12px">每人独立验证 · 只对自己的资金有权限</div>
-        <div class="field"><label>活动名称</label><input id="aa-title" placeholder="如：聚餐AA"></div>
-        <div class="field" style="margin-top:8px"><label>总金额（元）</label><input id="aa-total" type="number" placeholder="300"></div>
-        <div class="field" style="margin-top:8px"><label>其他参与人（逗号分隔）</label><input id="aa-parts" placeholder="小红,小李"></div>
-        <button class="btn btn-primary" style="margin-top:14px;width:100%" data-act="opAA">发起 AA</button>
-      </div>
+    <div class="page-sub">全部经由权限网关验证 · P2 资金操作需支付密码 + 短信验证码，缺一不可</div>
+    ${/* 任务 tab：只渲染当前选中那一张，另外两张不再同屏占位 */''}
+    <div class="task-tabs">
+      <span class="task-tab ${(S.taskTab || 'transfer') === 'transfer' ? 'on' : ''}" data-act="taskTab" data-arg="transfer">转账</span>
+      <span class="task-tab ${S.taskTab === 'scheduled' ? 'on' : ''}" data-act="taskTab" data-arg="scheduled">定时转账</span>
+      <span class="task-tab ${S.taskTab === 'aa' ? 'on' : ''}" data-act="taskTab" data-arg="aa">AA 收款</span>
     </div>
+    ${(S.taskTab || 'transfer') === 'transfer' ? `<div class="fold ${S.fold.transfer ? 'open' : ''}">
+      <div class="fold-head" data-act="toggleFold" data-arg="transfer">
+        <span class="chev">›</span>
+        <span class="ttl">普通转账</span>
+        <span class="val" data-fold-val="transfer">收款人 — · 金额 —</span>
+        <span class="act">${S.fold.transfer ? '收起' : '展开填写'}</span>
+      </div>
+      <div class="fold-body">
+        <div class="fold-row">
+          <div class="field"><label>收款人</label><input id="tf-name" placeholder="如：小红" data-fold-sum="transfer" data-label="收款人"></div>
+          <div class="field"><label>金额（元）</label><input id="tf-amount" type="number" placeholder="100" data-fold-sum="transfer" data-label="金额"></div>
+          <div class="btns"><button class="btn btn-primary" data-act="opTransfer">生成授权单</button></div>
+        </div>
+        <div class="hint-line">P2 资金操作：生成授权单后需你本人输入支付密码 + 短信码</div>
+      </div>
+    </div>` : ''}
+    ${S.taskTab === 'scheduled' ? `<div class="fold ${S.fold.scheduled ? 'open' : ''}">
+      <div class="fold-head" data-act="toggleFold" data-arg="scheduled">
+        <span class="chev">›</span>
+        <span class="ttl">定时转账</span>
+        <span class="val" data-fold-val="scheduled">收款人 — · 每期金额 —</span>
+        <span class="act">${S.fold.scheduled ? '收起' : '展开填写'}</span>
+      </div>
+      <div class="fold-body">
+        <div class="fold-row">
+          <div class="field"><label>收款人</label><input id="sd-name" placeholder="如：房东" data-fold-sum="scheduled" data-label="收款人"></div>
+          <div class="field"><label>每期金额（元）</label><input id="sd-amount" type="number" placeholder="2000" data-fold-sum="scheduled" data-label="每期"></div>
+          <div class="field"><label>频率</label><select id="sd-freq"><option value="once">单次（演示：1分钟后自动执行）</option><option value="daily">每天</option><option value="weekly">每周</option><option value="monthly">每月</option></select></div>
+          <div class="btns"><button class="btn btn-primary" data-act="opScheduled">创建定时转账</button></div>
+        </div>
+        <div class="hint-line">P1 确认创建 · 附带可撤销的持续性授权（限额 + 期限）</div>
+      </div>
+    </div>` : ''}
+    ${S.taskTab === 'aa' ? `<div class="fold ${S.fold.aa ? 'open' : ''}">
+      <div class="fold-head" data-act="toggleFold" data-arg="aa">
+        <span class="chev">›</span>
+        <span class="ttl">AA 收款</span>
+        <span class="val" data-fold-val="aa">活动 — · 总金额 —</span>
+        <span class="act">${S.fold.aa ? '收起' : '展开填写'}</span>
+      </div>
+      <div class="fold-body">
+        <div class="fold-row">
+          <div class="field"><label>活动名称</label><input id="aa-title" placeholder="如：聚餐AA" data-fold-sum="aa" data-label="活动"></div>
+          <div class="field"><label>总金额（元）</label><input id="aa-total" type="number" placeholder="300" data-fold-sum="aa" data-label="总额"></div>
+          <div class="field"><label>其他参与人（逗号分隔）</label><input id="aa-parts" placeholder="小红,小李"></div>
+          <div class="btns"><button class="btn btn-primary" data-act="opAA">发起 AA</button></div>
+        </div>
+        <div class="hint-line">每人独立验证 —— 只对自己的资金有权限，发起人也一样</div>
+      </div>
+    </div>` : ''}
     <div class="grid grid-2" style="margin-top:16px">
       <div class="card"><b>⏰ 定时任务</b> <button class="btn btn-outline btn-sm" style="float:right" data-act="tickScheduler">立即执行到期任务</button>
         ${scheduled.list.map(t => `<div class="cat-row"><span class="tag ${t.status === 'active' ? 'tag-green' : 'tag-gray'}">${ { active: '生效中', paused: '已暂停', done: '已完成', cancelled: '已取消' }[t.status] || t.status}</span>
@@ -812,24 +866,35 @@ async function renderCards() {
   renderShell(`
     <div class="page-title">卡片管理</div>
     <div class="page-sub">绑卡 · 默认卡 · 冻结/解冻（Agent 可代办） · 解绑（P3 禁止区，仅本人凭支付密码）</div>
-    <div class="grid grid-3" style="margin-bottom:16px">
-      <div class="card"><b>➕ 绑定新卡</b><div class="muted" style="margin:6px 0 12px">P1 低敏操作 · 一次性确认</div>
-        <div class="field"><label>卡片名称</label><input id="nc-name" placeholder="如：旅行卡"></div>
-        <div class="field" style="margin-top:8px"><label>卡号</label><input id="nc-num" maxlength="19" placeholder="12-19 位数字"></div>
-        <button class="btn btn-primary" style="margin-top:14px;width:100%" data-act="cardAdd">绑定</button>
+    ${/* 绑定新卡：从常驻表单改为折叠行 —— 用户来这页多数是看卡，不是绑卡 */''}
+    <div class="fold ${S.fold.card ? 'open' : ''}">
+      <div class="fold-head" data-act="toggleFold" data-arg="card">
+        <span class="chev">›</span>
+        <span class="ttl">绑定新卡</span>
+        <span class="val" data-fold-val="card">卡片名称 — · 卡号 —</span>
+        <span class="act">${S.fold.card ? '收起' : '展开填写'}</span>
       </div>
-      <div class="card" style="grid-column:span 2"><b>💳 我的卡片</b>
-        ${d.list.map(c => `<div class="cat-row">
-          <span style="font-size:22px">💳</span>
-          <span><b>${esc(c.name)}</b> ${c.isDefault ? '<span class="tag tag-blue">默认</span>' : ''} ${c.frozen ? '<span class="tag tag-red">已冻结</span>' : ''}
-            <div class="muted">${esc(c.number)}</div></span>
-          <span style="margin-left:auto;display:flex;gap:6px">
-            ${c.frozen ? `<button class="btn btn-outline btn-sm" data-act="cardUnfreeze" data-arg="${c.id}">解冻</button>`
-                       : `<button class="btn btn-outline btn-sm" data-act="cardFreeze" data-arg="${c.id}">冻结</button>`}
-            ${!c.isDefault ? `<button class="btn btn-outline btn-sm" data-act="cardSetDefault" data-arg="${c.id}">设默认</button>` : ''}
-            <button class="btn btn-danger btn-sm" data-act="agentTryRemove" data-arg="${c.id}">解绑</button>
-          </span></div>`).join('') || '<div class="muted" style="padding:16px">暂无卡片</div>'}
+      <div class="fold-body">
+        <div class="fold-row">
+          <div class="field"><label>卡片名称</label><input id="nc-name" placeholder="如：旅行卡" data-fold-sum="card" data-label="名称"></div>
+          <div class="field"><label>卡号</label><input id="nc-num" maxlength="19" placeholder="12-19 位数字" data-fold-sum="card" data-label="卡号"></div>
+          <div class="btns"><button class="btn btn-primary" data-act="cardAdd">绑定</button></div>
+        </div>
+        <div class="hint-line">P1 低敏操作 · 一次性确认，无需支付密码</div>
       </div>
+    </div>
+
+    <div class="card" style="margin-top:16px"><b>我的卡片</b>
+      ${d.list.map(c => `<div class="cat-row">
+        <span style="font-size:22px">💳</span>
+        <span><b>${esc(c.name)}</b> ${c.isDefault ? '<span class="tag tag-blue">默认</span>' : ''} ${c.frozen ? '<span class="tag tag-red">已冻结</span>' : ''}
+          <div class="muted">${esc(c.number)}</div></span>
+        <span style="margin-left:auto;display:flex;gap:6px">
+          ${c.frozen ? `<button class="btn btn-outline btn-sm" data-act="cardUnfreeze" data-arg="${c.id}">解冻</button>`
+                     : `<button class="btn btn-outline btn-sm" data-act="cardFreeze" data-arg="${c.id}">冻结</button>`}
+          ${!c.isDefault ? `<button class="btn btn-outline btn-sm" data-act="cardSetDefault" data-arg="${c.id}">设默认</button>` : ''}
+          <button class="btn btn-danger btn-sm" data-act="agentTryRemove" data-arg="${c.id}">解绑</button>
+        </span></div>`).join('') || '<div class="muted" style="padding:16px">暂无卡片</div>'}
     </div>
     <div class="card" style="border:1px dashed var(--border)"><b>🛡️ P3 禁止区演示</b>
       <div class="muted" style="margin-top:8px;line-height:2">「解绑卡片」属于 P3 高危操作。点击上方"解绑"会先模拟 <b>Agent 请求被权限网关拦截</b>，随后展示<b>仅限用户本人凭支付密码</b>操作的通道 —— 这就是"Agent 能做什么"与"只有你能做什么"的边界。</div>
@@ -886,15 +951,24 @@ async function renderContacts() {
   renderShell(`
     <div class="page-title">收款人通讯录</div>
     <div class="page-sub">Agent 只能从这本你亲手验证过的册子里取人；取不到就停下来问，绝不猜测</div>
-    <div class="card"><b>➕ 添加联系人</b>
-      <div class="muted" style="margin:6px 0 10px">新增联系人恒为「待验证」，单笔限 ¥50；完成验证后才恢复常规限额。验证动作只能由你本人完成，Agent 无此权限（P3）。</div>
-      <div class="grid2">
-        <input id="ct-name" placeholder="真实姓名（如 张桂芳）">
-        <input id="ct-alias" placeholder="代称，多个用逗号分隔（如 妈妈,妈）">
-        <input id="ct-account" placeholder="收款账号（12–19 位）" maxlength="19">
-        <input id="ct-phone" placeholder="手机号（11 位）" maxlength="11">
+    ${/* 添加联系人：默认折叠。空账户时这一行就是唯一入口，不先摊开四个空框 */''}
+    <div class="fold ${S.fold.contact ? 'open' : ''}">
+      <div class="fold-head" data-act="toggleFold" data-arg="contact">
+        <span class="chev">›</span>
+        <span class="ttl">添加联系人</span>
+        <span class="val" data-fold-val="contact">${list.length ? `当前 ${list.length} 位 · 新增恒为待验证` : '还没有收款人'}</span>
+        <span class="act">${S.fold.contact ? '收起' : '添加'}</span>
       </div>
-      <button class="btn btn-primary btn-sm" style="margin-top:10px" data-act="addContact">添加（进入待验证）</button>
+      <div class="fold-body">
+        <div class="fold-row">
+          <div class="field"><label>真实姓名</label><input id="ct-name" placeholder="如 张桂芳" data-fold-sum="contact" data-label="姓名"></div>
+          <div class="field"><label>代称（逗号分隔）</label><input id="ct-alias" placeholder="如 妈妈,妈" data-fold-sum="contact" data-label="代称"></div>
+          <div class="field"><label>收款账号</label><input id="ct-account" placeholder="12–19 位" maxlength="19"></div>
+          <div class="field"><label>手机号</label><input id="ct-phone" placeholder="11 位" maxlength="11"></div>
+          <div class="btns"><button class="btn btn-primary" data-act="addContact">添加</button></div>
+        </div>
+        <div class="hint-line">新增恒为「待验证」，单笔限 ¥50；验证只能由你本人完成，Agent 无此权限（P3）</div>
+      </div>
     </div>
     <div class="card" style="margin-top:16px"><b>✅ 已验证（${verified.length}）</b>
       <div style="margin-top:10px">${verified.map(item).join('') || '<div class="muted">暂无</div>'}</div></div>
@@ -930,68 +1004,165 @@ async function delContact(id) {
 async function renderSecurity() {
   const [d, ck] = await Promise.all([api('/api/security/overview'), api('/api/security/cockpit')]);
   renderShell(`
-    <div class="page-title">安全中心</div>
-    <div class="page-sub">看得见的防护 —— 攻击用例、实时拦截、审计链完整性，全部是真实数字，不是贴图。</div>
+    <div class="page-head">
+      <div>
+        <div class="page-title">安全中心</div>
+        <div class="page-sub">实时防护状态 · 策略矩阵 · 审计链</div>
+      </div>
+      <span class="status-pill ${ck.chainOk ? 'ok' : 'bad'}">
+        <i class="d"></i>${ck.chainOk ? '当前无风险项' : '审计链异常'}
+      </span>
+    </div>
 
-    <div class="cockpit">
-      <div class="cockpit-head">
-        <span style="font-size:20px">🛡️</span><h2>安全驾驶舱</h2>
-        <span class="live"><span class="dot"></span>实时</span>
-      </div>
-      <div class="cockpit-grid">
-        <div class="cockpit-stat good"><div class="k">注入攻击用例通过</div><div class="v">${ck.attackPass}<small> / ${ck.attackTotal}</small></div><div class="s" style="color:var(--success)">数据隔离层门禁全绿</div></div>
-        <div class="cockpit-stat ${ck.blockedToday > 0 ? 'bad' : ''}"><div class="k">今日拦截</div><div class="v">${ck.blockedToday}<small> 次</small></div><div class="s">注入 / 越权 / 篡改合计</div></div>
-        <div class="cockpit-stat ${ck.chainOk ? 'good' : 'bad'}"><div class="k">审计链完整性</div><div class="v">${ck.chainOk ? '✓ 完整' : '✗ 断裂'}</div><div class="s" style="color:${ck.chainOk ? 'var(--success)' : 'var(--danger)'}">${ck.chainCount} 条已校验</div></div>
-        <div class="cockpit-stat"><div class="k">大额撤销窗口</div><div class="v">${ck.revokeWindowSec}<small> 秒</small></div><div class="s">≥ ${yuan(ck.largeThreshold)} 自动开启</div></div>
-      </div>
-      <div class="cockpit-chain">
-        <span>🔗 审计哈希链链尾：</span><code>${esc(ck.chainHead || 'GENESIS')}</code>
-        <span>· 每条含 HMAC(前一条哈希 | 本条内容)，篡改任意一条即校验失败</span>
-        <button class="btn btn-outline btn-sm" style="margin-left:auto" data-act="verifyChain">校验完整性</button>
+    <!-- 仪表窗：深色只做数据面，面板内零可点击元素 -->
+    <div class="inst">
+      <div class="inst-in">
+        <div class="inst-top">
+          <span class="t">安全驾驶舱</span>
+          <span class="sub">Security Cockpit</span>
+          <span class="live"><span class="dot"></span>LIVE</span>
+        </div>
+        <div class="inst-grid">
+          <div class="inst-cell ok">
+            <div class="k">注入用例通过</div>
+            <div class="v">${ck.attackPass}<small> / ${ck.attackTotal}</small></div>
+            <div class="s">数据隔离层门禁全绿</div>
+          </div>
+          <div class="inst-cell ${ck.blockedToday > 0 ? 'wn' : ''}">
+            <div class="k">今日拦截</div>
+            <div class="v">${ck.blockedToday}<small> 次</small></div>
+            <div class="s">注入 / 越权 / 篡改合计</div>
+          </div>
+          <div class="inst-cell ${ck.chainOk ? 'ok' : 'bd'}">
+            <div class="k">审计链完整性</div>
+            <div class="v">${ck.chainOk ? '✓' : '✗'}<small> ${ck.chainOk ? '完整' : '断裂'}</small></div>
+            <div class="s">${ck.chainCount} 条已校验</div>
+          </div>
+          <div class="inst-cell">
+            <div class="k">大额撤销窗口</div>
+            <div class="v">${ck.revokeWindowSec}<small> 秒</small></div>
+            <div class="s">≥ ${yuan(ck.largeThreshold)} 自动开启</div>
+          </div>
+        </div>
+        <div class="inst-foot">
+          <span class="lb">链尾哈希</span>
+          <code>${esc(String(ck.chainHead || 'GENESIS').slice(0, 16))}</code>
+          <span class="note">每条含 HMAC(前一条哈希 | 本条内容)</span>
+        </div>
       </div>
     </div>
 
-    <div class="grid grid-2">
-      <div class="card"><b>🛡️ Agent 权限矩阵（P0-P3）</b><div class="muted" style="margin:6px 0 10px">硬编码策略表，LLM 无法修改</div>
-        ${[0, 1, 2, 3].map(lv => `<div style="margin-bottom:8px">
-          <b style="font-size:12px">P${lv} ${['只读·自动放行', '低敏·一次性确认', '资金·双重验证', '禁止区·Agent 永久无权'][lv]}</b>
-          ${d.policy.filter(p => p.level === lv).map(p => `<div class="perm-row lv${lv}"><span class="tag tag-gray" style="min-width:110px">${esc(p.action)}</span>${esc(p.desc)}</div>`).join('')}
-        </div>`).join('')}
+    <!-- 面板外的浅色操作区：深色面板里不放按钮，避免操作区混乱 -->
+    <div class="inst-actions">
+      <button class="btn btn-outline btn-sm" data-act="verifyChain">校验完整性</button>
+      <span class="hint">现场重算全部哈希，篡改任意一条即校验失败</span>
+    </div>
+
+    <!-- 权限矩阵：阶梯式，左侧色条从灰到红表达危险度递增 -->
+    <div class="perm-matrix">
+      <div class="perm-matrix-head">
+        <b>Agent 权限矩阵</b>
+        <span class="tag tag-gray" style="font-size:10.5px">硬编码 · LLM 无法修改</span>
       </div>
-      <div>
-        <div class="card" style="margin-bottom:16px"><b>🔑 持续性授权（定时任务）</b>
-          ${d.standing.length ? d.standing.map(a => `<div class="cat-row">
+      <div class="perm-matrix-sub">四档权限从「自动放行」到「永久禁止」，颜色随危险度递增</div>
+      ${[
+        [0, '只读 · 自动放行', 'var(--ink-300)', 'var(--ink-400)'],
+        [1, '低敏 · 一次性确认', 'var(--brand)', 'var(--brand)'],
+        [2, '资金 · 本人双重验证', 'var(--amber)', 'var(--amber)'],
+        [3, '禁止区 · Agent 永久无权', 'var(--red)', 'var(--red)']
+      ].map(([lv, name, bar, fg]) => {
+        const items = d.policy.filter(p => p.level === lv);
+        return `<div class="perm-row2">
+          <div class="bar" style="background:${bar}"></div>
+          <div class="lv" style="color:${fg}">P${lv}</div>
+          <div class="bd">
+            <div class="nm">${name}</div>
+            ${items.map(p => `<div class="it"><code>${esc(p.action)}</code><span>${esc(p.desc)}</span></div>`).join('') || '<div class="it"><span class="muted">无</span></div>'}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+
+
+    ${/* 以下三块均为「填写即配置」类，默认折叠；折叠态必须显示当前值 */''}
+    <div class="fold ${S.fold.standing ? 'open' : ''}">
+      <div class="fold-head" data-act="toggleFold" data-arg="standing">
+        <span class="chev">›</span>
+        <span class="ttl">持续性授权</span>
+        <span class="val">${d.standing.filter(a => !a.revoked).length} 项生效中<em>${d.standing.length ? ' · 共 ' + d.standing.length + ' 条记录' : ' · 创建定时转账时自动生成'}</em></span>
+        <span class="act">${S.fold.standing ? '收起' : '查看'}</span>
+      </div>
+      <div class="fold-body">
+        ${d.standing.length ? d.standing.map(a => `<div class="cat-row">
             <span class="tag ${a.revoked ? 'tag-gray' : 'tag-green'}">${a.revoked ? '已撤销' : '生效中'}</span>
             <span>${esc(a.action)} · 单日限额 ${yuan(a.dailyLimitCents)}<div class="muted">授权至 ${fmtT(a.expiresAt)} · 今日已用 ${yuan(a.usedTodayCents)}</div></span>
             ${!a.revoked ? `<button class="btn btn-danger btn-sm" style="margin-left:auto" data-act="revokeStanding" data-arg="${a.id}">撤销</button>` : ''}</div>`).join('')
-          : '<div class="muted" style="padding:12px">暂无持续性授权。创建定时转账时会自动生成（限额+期限+可撤销）。</div>'}
-        </div>
-        <div class="card"><b>⚙️ 交易限额</b>
-          <div style="display:flex;gap:10px;margin-top:10px;align-items:end">
-            <div class="field"><label>单笔（元）</label><input id="lim-s" type="number" value="${(d.limits.single / 100).toFixed(0)}"></div>
-            <div class="field"><label>单日（元）</label><input id="lim-d" type="number" value="${(d.limits.daily / 100).toFixed(0)}"></div>
-            <button class="btn btn-primary btn-sm" data-act="saveLimits">保存</button>
-          </div>
-          <div class="hr"></div>
-          <b>🔑 支付密码</b>
-          <div style="display:flex;gap:10px;margin-top:10px;align-items:end">
-            <div class="field"><label>旧支付密码</label><input id="pp-old" type="password" maxlength="6"></div>
-            <div class="field"><label>新支付密码</label><input id="pp-new" type="password" maxlength="6"></div>
-            <button class="btn btn-primary btn-sm" data-act="changePaypass">更新</button>
-          </div>
-        </div>
+          : '<div class="muted" style="padding:8px 0">暂无持续性授权。创建定时转账时会自动生成（限额 + 期限 + 可撤销）。</div>'}
       </div>
     </div>
-    <div class="card" style="margin-top:16px"><b>📜 审计日志（全链路 · 哈希链）</b> <button class="btn btn-outline btn-sm" style="float:right" data-act="render">刷新</button>
-      <div style="margin-top:10px;max-height:420px;overflow-y:auto">
-      ${d.audit.map(l => `<div class="audit-item ${l.result}">
-        <span class="t">${fmtT(l.t)}</span> <span class="tag tag-gray">${esc(l.actor)}</span>
-        <b>${esc(l.action)}</b> <span class="tag ${l.result === 'OK' || l.result === 'APPROVED' || l.result === 'CREATED' ? 'tag-green' : 'tag-red'}">${l.result}</span>
-        ${l.layer ? `<span class="tag tag-orange">${esc(l.layer)}</span>` : ''}
-        <span class="audit-ref">#${esc(l.ref || '')}</span> <span class="muted" title="${esc(l.hash || '')}">链 ${esc((l.hash || '').slice(0, 8))}</span>
-        <div class="muted">${esc(l.note || '')}</div>
-      </div>`).join('') || '<div class="muted">暂无日志</div>'}
-      </div></div>`);
+
+    <div class="fold ${S.fold.limits ? 'open' : ''}">
+      <div class="fold-head" data-act="toggleFold" data-arg="limits">
+        <span class="chev">›</span>
+        <span class="ttl">交易限额</span>
+        <span class="val">单笔 <em>${yuan(d.limits.single)}</em> · 单日 <em>${yuan(d.limits.daily)}</em></span>
+        <span class="act">${S.fold.limits ? '收起' : '修改'}</span>
+      </div>
+      <div class="fold-body">
+        <div class="fold-row">
+          <div class="field"><label>单笔（元）</label><input id="lim-s" type="number" value="${(d.limits.single / 100).toFixed(0)}"></div>
+          <div class="field"><label>单日（元）</label><input id="lim-d" type="number" value="${(d.limits.daily / 100).toFixed(0)}"></div>
+          <div class="btns">
+            <button class="btn btn-primary btn-sm" data-act="saveLimits">保存</button>
+            <button class="btn btn-outline btn-sm" data-act="toggleFold" data-arg="limits">取消</button>
+          </div>
+        </div>
+        <div class="hint-line">限额是本地策略表的一部分，Agent 无法读取也无法修改</div>
+      </div>
+    </div>
+
+    <div class="fold ${S.fold.paypass ? 'open' : ''}">
+      <div class="fold-head" data-act="toggleFold" data-arg="paypass">
+        <span class="chev">›</span>
+        <span class="ttl">支付密码</span>
+        <span class="val">${S.user && S.user.hasPayPass === false ? '<em style="color:var(--amber)">未设置</em> · 设置后才能转账' : '已设置 · 修改需验证旧密码'}</span>
+        <span class="act">${S.fold.paypass ? '收起' : '修改'}</span>
+      </div>
+      <div class="fold-body">
+        <div class="fold-row">
+          <div class="field"><label>旧支付密码</label><input id="pp-old" type="password" maxlength="6" inputmode="numeric"></div>
+          <div class="field"><label>新支付密码</label><input id="pp-new" type="password" maxlength="6" inputmode="numeric"></div>
+          <div class="btns">
+            <button class="btn btn-primary btn-sm" data-act="changePaypass">更新</button>
+            <button class="btn btn-outline btn-sm" data-act="toggleFold" data-arg="paypass">取消</button>
+          </div>
+        </div>
+        <div class="hint-line">P3 禁止区操作：Agent 即使被要求也永久无权修改</div>
+      </div>
+    </div>
+
+    <div class="fold ${S.fold.audit ? 'open' : ''}" style="margin-top:16px">
+      <div class="fold-head" data-act="toggleFold" data-arg="audit">
+        <span class="chev">›</span>
+        <span class="ttl">审计日志</span>
+        <span class="val">共 ${d.audit.length} 条 · 最近 <em>${d.audit.length ? fmtT(d.audit[0].t) : '—'}</em> · 全链路哈希链</span>
+        <span class="act">${S.fold.audit ? '收起' : '展开全部'}</span>
+      </div>
+      <div class="fold-body">
+        <div style="display:flex;justify-content:flex-end;padding-top:10px">
+          <button class="btn btn-outline btn-sm" data-act="render">刷新</button>
+        </div>
+        <div style="margin-top:8px;max-height:420px;overflow-y:auto">
+        ${d.audit.map(l => `<div class="audit-item ${l.result}">
+          <span class="t">${fmtT(l.t)}</span> <span class="tag tag-gray">${esc(l.actor)}</span>
+          <b>${esc(l.action)}</b> <span class="tag ${l.result === 'OK' || l.result === 'APPROVED' || l.result === 'CREATED' ? 'tag-green' : 'tag-red'}">${l.result}</span>
+          ${l.layer ? `<span class="tag tag-orange">${esc(l.layer)}</span>` : ''}
+          <span class="audit-ref">#${esc(l.ref || '')}</span> <span class="muted" title="${esc(l.hash || '')}">链 ${esc((l.hash || '').slice(0, 8))}</span>
+          <div class="muted">${esc(l.note || '')}</div>
+        </div>`).join('') || '<div class="muted">暂无日志</div>'}
+        </div>
+      </div>
+    </div>`);
 }
 async function verifyChain() {
   const r = await api('/api/security/audit/verify');
@@ -1076,21 +1247,23 @@ function renderTraces() {
   const list = (typeof TRACES !== 'undefined' && TRACES) || [];
   const cur = currentTrace();
 
-  const cards = list.map((t, i) => {
-    const active = cur && cur.id === t.id;
-    return `<div class="trace-card ${active ? 'active' : ''}">
-      <div class="trace-head">
-        <div class="trace-no">${i + 1}</div>
-        <div style="flex:1;min-width:0">
-          <div class="trace-title">${esc(t.title)}</div>
-          <div class="trace-meta">${esc(t.pattern)} · 覆盖 ${esc(t.covers)} · 共 ${t.steps.length} 步</div>
+  // 目录行：why 说明与播放按钮收进展开区。
+  // 理由：选项超过 5 个且高度同质时，列表胜过卡片——先扫标题（1 秒），再决定展开哪条。
+  const rows = list.map((t, i) => {
+    const active = !!cur && cur.id === t.id;
+    const open = !!S.traceWhy[t.id] || active;
+    return `<div class="trace-row ${active ? 'active' : ''} ${open ? 'open' : ''}">
+      <div class="trace-row-head" data-act="traceWhy" data-arg="${esc(t.id)}">
+        <span class="no">${i + 1}</span>
+        <div class="tx">
+          <div class="tt">${esc(t.title)}${active ? ' <span class="tag tag-green" style="font-size:9.5px;vertical-align:middle">回放中</span>' : ''}</div>
+          <div class="mt">${esc(t.pattern)} · 覆盖 ${esc(t.covers)} · ${t.steps.length} 步</div>
         </div>
+        <span class="chev">›</span>
       </div>
-      <div class="trace-why">${esc(t.why)}</div>
-      <div style="margin-top:10px">
-        <button class="btn ${active ? 'btn-outline' : 'btn-primary'} btn-sm" data-act="playTrace" data-arg="${esc(t.id)}">
-          ${active ? '↻ 从头播放' : '▶ 播放这条'}
-        </button>
+      <div class="trace-row-body">
+        <div class="why">${esc(t.why)}</div>
+        <button class="btn ${active ? 'btn-outline' : 'btn-primary'} btn-sm" data-act="playTrace" data-arg="${esc(t.id)}">${active ? '↻ 从头播放' : '▶ 播放这条'}</button>
       </div>
     </div>`;
   }).join('');
@@ -1116,10 +1289,10 @@ function renderTraces() {
   }
 
   renderShell(`
-    <div class="page-title">🎬 黄金轨迹</div>
-    <div class="page-sub">7 条预录轨迹，覆盖本次提交的核心能力。答辩时若断网、模型不可用或演示数据被打乱，用这里兜底。</div>
+    <div class="page-title">黄金轨迹</div>
+    <div class="page-sub">${list.length} 条预录轨迹，覆盖核心能力。断网、模型不可用或演示数据被打乱时用这里兜底 —— 点任意一条展开说明与播放。</div>
     ${stage}
-    <div class="trace-grid">${cards}</div>
+    <div class="trace-list">${rows}</div>
   `);
 }
 
@@ -1178,6 +1351,29 @@ const ACTIONS = {
   go: (el, a) => go(a),
   render: () => render(),
   toggleSidebar: () => { S.collapsed = !S.collapsed; render(); },
+  // ---- V4 引导组：浏览偏好，写 localStorage（与操作状态区分开）----
+  toggleGuide: () => {
+    S.guideOpen = !S.guideOpen;
+    LS.set('ab_guide', S.guideOpen ? '1' : '0');
+    render();
+  },
+  // ---- V4 折叠：一个分支管所有「填写即配置」表单 ----
+  // 只翻转标记后整体重渲染。S.fold 只管展开/收起，不存表单值。
+  toggleFold: (el, a) => {
+    S.fold[a] = S.fold[a] ? 0 : 1;
+    render();
+    if (S.fold[a]) setTimeout(() => {
+      const box = document.querySelector('.fold.open .fold-body');
+      const inp = box && box.querySelector('input, select, textarea');
+      if (inp) inp.focus();   // 省一次点击：点「修改」的意图就是要打字
+    }, 200);
+  },
+  traceWhy: (el, a) => {
+    S.traceWhy[a] = S.traceWhy[a] ? 0 : 1;
+    render();
+  },
+  // 转账页任务 tab：只渲染当前那张表单
+  taskTab: (el, a) => { S.taskTab = a; render(); },
   toggleSMS: () => { S.smsOpen = !S.smsOpen; renderSMS(); },
   doLogout: () => doLogout(),
   quickLogin: () => quickLogin(),
@@ -1281,9 +1477,26 @@ document.addEventListener('keydown', e => {
   if (fn) fn(el);
 });
 
+// V4 折叠摘要：在折叠区内输入时，同步更新标题行那一段摘要文字。
+// 目的：用户填完收起后，那一行变成这次操作的备忘，而不是变回「收款人 —」。
+// 只改文本不重渲染 —— 重渲染会丢焦点。
+document.addEventListener('input', e => {
+  const inp = e.target.closest && e.target.closest('[data-fold-sum]');
+  if (!inp) return;
+  const kind = inp.dataset.foldSum;
+  const head = document.querySelector(`[data-fold-val="${kind}"]`);
+  if (!head) return;
+  const body = inp.closest('.fold-body');
+  const parts = [...body.querySelectorAll('[data-fold-sum]')]
+    .map(i => {
+      const v = (i.value || '').trim();
+      return v ? `${i.dataset.label} ${v}` : `${i.dataset.label} —`;
+    });
+  head.textContent = parts.join(' · ');
+});
+
 document.addEventListener('change', e => {
   const el = e.target.closest && e.target.closest('[data-change]');
   if (!el) return;
   const fn = ACTIONS[el.dataset.change];
-  if (fn) fn(el, el.value);
-});
+  if (fn) fn(el, el.value);});

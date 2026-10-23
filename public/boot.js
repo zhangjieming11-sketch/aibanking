@@ -20,6 +20,14 @@ const S = {  // 全局状态
   collapsed: false,
   depOpen: false,      // 首页「存入」输入区展开状态
   pendingPayee: null,  // 待确认的收款人候选（歧义/谐音时使用）
+  // ---- V4 折叠体系 ----
+  // 引导组展开状态：属于浏览偏好，写 localStorage
+  guideOpen: LS.get('ab_guide') === '1',
+  // 所有「填写即配置」类表单的展开状态：集中一个对象，不写 N 个布尔
+  // 0/undefined = 收起；1 = 展开。刷新即重置为收起（默认折叠是产品决策）
+  // 注意：授权确认卡的密码框、风险测评、登录注册不在此列，它们永不折叠
+  fold: {},
+  taskTab: 'transfer',  // 转账页当前任务：transfer / scheduled / aa
   // E9 投屏演示模式：大字号 + 高对比。可用侧栏按钮切换，也可用 ?proj=1 直接进入
   projection: LS.get('ab_proj') === '1' || /[?&]proj=1/.test(location.search),
   // E6 黄金轨迹回放：traceId 为 null 表示未在回放
