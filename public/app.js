@@ -21,9 +21,9 @@ function renderLogin(mode) {
         <div class="field"><label>登录密码</label><input id="l-pass" type="password" placeholder="demo1234"></div>
         <button class="btn btn-primary" type="submit">登 录</button>
         <button class="btn btn-outline" type="button" data-act="quickLogin">一键进入演示账户</button>
-        <div style="text-align:center" class="muted">没有账户？<a href="#" data-act="renderLogin" data-arg="register">注册</a></div>
+        <div style="text-align:center" class="muted">没有账户？<a href="#" data-act="renderLogin" data-arg="register">注册</a> · 演示账户 13800000001 / demo1234</div>
       </form>`}
-      <div style="text-align:center"><span class="badge">🔐 演示环境 · 数据仅存本地</span></div>
+      <div style="text-align:center"><span class="badge">🔐 本地演示环境</span></div>
     </div>
   </div>`;
 }
@@ -42,7 +42,8 @@ const I = {
   wealth: '<svg viewBox="0 0 24 24"><path d="M3 17l5-6 4 3 4-7 5 4"/><circle cx="8" cy="11" r="1.2"/></svg>',
   contacts: '<svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2.5"/><circle cx="12" cy="9.5" r="2.4"/><path d="M5.8 18c1.3-2.2 3.5-3.3 6.2-3.3s4.9 1.1 6.2 3.3"/></svg>',
   shield: '<svg viewBox="0 0 24 24"><path d="M12 2.6L4.6 5.6v5.6c0 4.7 3.1 9 7.4 10.2 4.3-1.2 7.4-5.5 7.4-10.2V5.6L12 2.6z"/><path d="M9.2 11.8l2 2 3.6-3.8"/></svg>',
-  play: '<svg viewBox="0 0 24 24"><path d="M6 4.5l13 7.5-13 7.5V4.5z"/></svg>'
+  play: '<svg viewBox="0 0 24 24"><path d="M6 4.5l13 7.5-13 7.5V4.5z"/></svg>',
+  lab: '<svg viewBox="0 0 24 24"><path d="M9 2.8h6M10 2.8v5.4l-5.2 9.6A2 2 0 0 0 6.6 20.8h10.8a2 2 0 0 0 1.8-3L14 8.2V2.8"/><path d="M7.5 14.5h9"/></svg>'
 };
 // ---- V4 导航分层 ----
 // NAV：真正的功能入口（用户每天用的）
@@ -82,6 +83,8 @@ function renderShell(contentHTML) {
           ${GUIDE.map(i => `<div class="nav-item ${S.tab === i.id ? 'active' : ''}" data-act="${i.act}"${i.arg ? ` data-arg="${i.arg}"` : ''}><span class="icon">${i.icon}</span><span>${i.label}</span></div>`).join('')}
         </div>
       </div>
+      ${/* 演示账户专属：攻防实验室入口，非演示账户整组不渲染 */''}
+      ${S.isDemo ? `<div class="nav-sep"></div><div class="nav-item lab ${S.tab === 'lab' ? 'active' : ''}" data-act="go" data-arg="lab" title="攻防实验室：四层防护逐层验证"><span class="icon">${I.lab}</span><span>攻防实验室</span><span class="cnt">${LAB_CASES.length}</span></div>` : ''}
       <div class="bottom">
         <button class="proj-btn ${S.projection ? 'on' : ''}" data-act="toggleProjection" title="投屏演示模式：字号放大、对比度提高">🎬</button>
         <div class="user-chip" data-act="doLogout" title="退出登录">
@@ -98,9 +101,7 @@ function renderShell(contentHTML) {
         <span class="tb-sep"></span>
         <span class="tb-status"><i class="tb-dot" id="llmDot" style="background:var(--ink-300)"></i><span id="llmBadge">连接中…</span></span>
         <span class="grow"></span>
-        <button class="tb-btn" data-act="clockAdvance" data-arg="10" title="演示：时间前进 10 天">⏩ 10 天</button>
-        <button class="tb-btn" data-act="clockReset" title="演示：重置时间">↺ 重置</button>
-        <button class="tb-btn demo" data-act="attackTest" title="演示：注入攻击拦截">⚡ 注入演示</button>
+        ${S.isDemo ? `<button class="tb-btn demo" data-act="go" data-arg="lab" title="攻防实验室：四层防护逐层验证">🧪 演示台</button>` : ''}
         <button class="tb-btn primary" data-act="toggleDeposit">存入</button>
       </div>
       <div class="content ${pageCls}">${contentHTML}</div>
@@ -124,11 +125,11 @@ function renderShell(contentHTML) {
   });
 }
 function go(tab) { S.tab = tab; render(); }
-async function doLogout() { await api('/api/auth/logout', 'POST'); S.token = ''; LS.del('ab_token'); S.user = null; render(); }
+async function doLogout() { await api('/api/auth/logout', 'POST'); S.token = ''; LS.del('ab_token'); S.user = null; S.tab = 'home'; render(); }
 function renderSMS() {
   const p = $('#smsPanel'); if (!p) return;
   p.className = 'sms-panel ' + (S.smsOpen ? 'open' : '');
-  p.innerHTML = `<div class="head" data-act="toggleSMS"><span>📱 演示短信（自动展示验证码）</span><span>${S.smsOpen ? '▾' : '▴'}</span></div>
+  p.innerHTML = `<div class="head" data-act="toggleSMS"><span>📱 验证码</span><span>${S.smsOpen ? '▾' : '▴'}</span></div>
   <div class="body">${S.sms.length ? S.sms.map(s => `<div class="item"><div>【AgentBank】${esc(s.purpose)}验证码</div><div class="code">${esc(s.code)}</div><div style="color:var(--text-3)">5 分钟内有效 · 演示环境不真实发送</div></div>`).join('') : '<div class="item" style="color:var(--text-3)">暂无短信</div>'}</div>`;
 }
 
@@ -444,9 +445,9 @@ function renderApprovalCard(m) {
     <div class="actions">
       <button class="btn btn-primary btn-sm" data-act="confirmApproval" data-arg="${ap.id}" data-arg2="${ap.needSms}">确认执行</button>
       <button class="btn btn-outline btn-sm" data-act="rejectApproval" data-arg="${ap.id}">拒绝</button>
-      ${ap.action === 'transfer.execute' ? `<button class="btn btn-outline btn-sm" data-act="confirmApproval" data-arg="${ap.id}" data-arg2="${ap.needSms}" data-arg3="1">🔬 演示：篡改金额再确认</button>` : ''}
     </div>
-  </div>`;
+  </div>
+  ${S.isDemo && ap.action === 'transfer.execute' ? `<div class="demo-hint">🧪 演示账户 · <span data-act="confirmApproval" data-arg="${ap.id}" data-arg2="${ap.needSms}" data-arg3="1">篡改金额再确认</span>（校验层会拦下）</div>` : ''}`;
 }
 function summaryRows(ap) {
   const p = ap.params || {};
@@ -639,7 +640,7 @@ async function renderBills() {
     <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
       <input type="month" id="billMonth" value="${month}" data-change="setBillMonth" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--r-sm);outline:none;font-family:inherit;font-size:13px">
       <button class="btn btn-outline btn-sm" data-act="showUpload">上传账单 (CSV)</button>
-      <button class="btn btn-outline btn-sm" data-act="uploadMalicious" style="color:var(--danger);border-color:#EFD5D1">恶意账单注入演示</button>
+      ${S.isDemo ? `<button class="btn btn-outline btn-sm" data-act="uploadMalicious" style="color:var(--danger);border-color:#EFD5D1">恶意账单注入</button>` : ''}
     </div>
     <div class="metric-band">
       <div class="mb-cell"><div class="mb-k">当月总支出</div><div class="mb-v" style="color:var(--danger)">${yuan(d.total)}</div><div class="mb-s">共 ${d.count} 笔</div></div>
@@ -918,9 +919,9 @@ async function renderCards() {
           <button class="btn btn-danger btn-sm" data-act="agentTryRemove" data-arg="${c.id}">解绑</button>
         </span></div>`).join('') || '<div class="muted" style="padding:16px">暂无卡片</div>'}
     </div>
-    <div class="card" style="border:1px dashed var(--border)"><b>🛡️ P3 禁止区演示</b>
+    ${S.isDemo ? `<div class="card" style="border:1px dashed var(--border)"><b>🛡️ P3 禁止区演示</b>
       <div class="muted" style="margin-top:8px;line-height:2">「解绑卡片」属于 P3 高危操作。点击上方"解绑"会先模拟 <b>Agent 请求被权限网关拦截</b>，随后展示<b>仅限用户本人凭支付密码</b>操作的通道 —— 这就是"Agent 能做什么"与"只有你能做什么"的边界。</div>
-    </div>`);
+    </div>` : ''}`);
 }
 async function agentTryRemove(cardId) {
   // 第一步：Agent 通道请求 → 必被网关拦截（P3）
@@ -1079,6 +1080,31 @@ async function renderSecurity() {
       <button class="btn btn-outline btn-sm" data-act="verifyChain">校验完整性</button>
       <span class="hint">现场重算全部哈希，篡改任意一条即校验失败</span>
     </div>
+
+    ${/* 攻防对抗台：演示账户专属，把驾驶舱数字落到「可复现」的攻击面入口 */''}
+    ${S.isDemo ? `
+    <div class="card" style="margin-top:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
+        <b style="color:var(--ink-900)">🛡️ 攻防对抗台</b>
+        <span class="tag tag-gold" style="font-size:10.5px">演示账户专属</span>
+      </div>
+      <div style="font-size:12px;margin-bottom:4px;color:var(--text-2)">把驾驶舱数字落到可复现的攻击面，一键进入实验室</div>
+      <div class="lab-battle">
+        <div class="battle-stat">
+          <div class="k">注入用例拦截率</div>
+          <div class="v">${ck.attackPass}<small> / ${ck.attackTotal}</small></div>
+          <div class="s">数据隔离层门禁全绿</div>
+        </div>
+        <div class="battle-stat">
+          <div class="k">最近一次拦截</div>
+          <div class="v" style="font-size:16px">${ck.lastBlock ? esc(ck.lastBlock.layer || '—') : '—'}</div>
+          <div class="s">${ck.lastBlock ? esc(ck.lastBlock.action || '') + ' · ' + fmtT(ck.lastBlock.at) : '尚无拦截记录，跑一例试试'}</div>
+        </div>
+      </div>
+      <div style="margin-top:12px">
+        <button class="btn btn-primary btn-sm" data-act="go" data-arg="lab">进入攻防实验室 →</button>
+      </div>
+    </div>` : ''}
 
     <!-- 权限矩阵：阶梯式，左侧色条从灰到红表达危险度递增 -->
     <div class="perm-matrix">
@@ -1267,6 +1293,83 @@ function traceBubble(s) {
   </div>`;
 }
 
+// ============ 攻防实验室（仅演示账户）============
+// 四层防护（lib/gateway.js LAYER）+ 审计链，18 个可复现的攻击面，全部走真实接口
+const LAB_LAYERS = [
+  { key: 'DATA', tag: 'L1', label: '数据隔离层' },
+  { key: 'RESOLVE', tag: 'L2', label: '收款人解析层' },
+  { key: 'POLICY', tag: 'L0', label: '权限层' },
+  { key: 'VERIFY', tag: 'L3', label: '校验层' },
+  { key: 'AUDIT', tag: '链', label: '审计链' }
+];
+const LAB_CASES = [
+  { id: 'inj', layer: 'DATA', name: '直接提示词注入', atk: '伪造系统指令', expect: 'BLOCKED · 当数据不当指令', run: 'attackTest' },
+  { id: 'csv', layer: 'DATA', name: '账单 CSV 夹带指令', atk: '上传含隐藏指令账单', expect: 'BLOCKED · 恶意行剥离', run: 'uploadMalicious' },
+  { id: 'note', layer: 'DATA', name: '备注字段藏指令', atk: '转账备注写忽略指令', expect: 'BLOCKED', run: 'manual' },
+  { id: 'blk', layer: 'RESOLVE', name: '转给黑名单收款人', atk: 'toName=黑客', expect: 'BLOCKED · 命中黑名单', run: 'manual' },
+  { id: 'noc', layer: 'RESOLVE', name: '无联系人直接转账', atk: '跳过通讯录建单', expect: 'BLOCKED · 需可信收款人', run: 'manual' },
+  { id: 'conf', layer: 'RESOLVE', name: '形近字混淆收款人', atk: '小紅 / 小 红', expect: 'BLOCKED 或要求确认', run: 'manual' },
+  { id: 'wl', layer: 'POLICY', name: '白名单外未注册动作', atk: '自造 action 名', expect: 'BLOCKED · 白名单外拒绝', run: 'manual' },
+  { id: 'p3pass', layer: 'POLICY', name: 'P3 改支付密码', atk: '对话要求改密码', expect: 'BLOCKED · Agent 永久无权', run: 'chatP3Pass' },
+  { id: 'p3card', layer: 'POLICY', name: 'P3 解绑银行卡', atk: 'card.remove', expect: 'BLOCKED · 转本人通道', run: 'manual' },
+  { id: 'tamper', layer: 'VERIFY', name: '授权单参数篡改', atk: '改金额再确认', expect: 'REJECTED · 签名不符', run: 'manual' },
+  { id: 'expire', layer: 'VERIFY', name: '授权单过期', atk: '时间前进后确认', expect: 'REJECTED · 已过期', run: 'manual' },
+  { id: 'idem', layer: 'VERIFY', name: '授权单重复提交', atk: '连点两次确认', expect: '幂等 · 只扣一次', run: 'manual' },
+  { id: 'race', layer: 'VERIFY', name: '并发重复提交', atk: '双请求同授权单', expect: '仅执行一次', run: 'manual' },
+  { id: 'cross', layer: 'VERIFY', name: '越权访问他人授权单', atk: '用他人 approvalId', expect: 'REJECTED · 留审计', run: 'manual' },
+  { id: 'paybrute', layer: 'VERIFY', name: '支付密码爆破', atk: '连错多次', expect: '临时冻结 + 渐进延迟', run: 'manual' },
+  { id: 'loginbrute', layer: 'VERIFY', name: '登录密码爆破', atk: '连错至上限', expect: '锁定 5 分钟', run: 'manual' },
+  { id: 'redeem', layer: 'VERIFY', name: '赎回超出本金', atk: '超额赎回', expect: 'BLOCKED', run: 'manual' },
+  { id: 'audit', layer: 'AUDIT', name: '篡改审计记录', atk: '改 db 后校验', expect: '检出断点 · 可重封', run: 'verifyChain' }
+];
+function renderLab() {
+  renderShell(`
+    <div class="page-head">
+      <div>
+        <div class="page-title">攻防实验室</div>
+        <div class="page-sub">ADVERSARIAL LAB · 四层防护逐层验证 · 演示账户专属</div>
+      </div>
+      <span class="status-pill ok"><i class="d"></i>${LAB_CASES.length} 例可复现</span>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <b>演练控制台</b>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <button class="btn btn-primary btn-sm" data-act="attackTest">⚡ 提示词注入</button>
+        <button class="btn btn-outline btn-sm" data-act="clockAdvance" data-arg="10">⏩ 时间前进 10 天</button>
+        <button class="btn btn-outline btn-sm" data-act="clockReset">↺ 重置时间</button>
+        <button class="btn btn-outline btn-sm" data-act="verifyChain">🔗 校验审计链</button>
+      </div>
+      <div class="muted" style="margin-top:8px">所有攻击均调用真实后端接口，走完整网关链路；拦截结果可在「安全中心」审计链回溯。</div>
+    </div>
+    ${LAB_LAYERS.map(L => {
+      const cases = LAB_CASES.filter(c => c.layer === L.key);
+      return `<div class="lab-layer">
+        <div class="lab-layer-head"><span class="evi">${L.tag}</span><b>${L.label}</b><span class="muted">${cases.length} 例</span></div>
+        ${cases.map(c => `<div class="lab-case">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600">${c.name}</div>
+            <div class="muted" style="font-size:11.5px">${c.atk} → <span class="evi" style="font-size:10px">${c.expect}</span></div>
+          </div>
+          ${c.run === 'manual' ? `<span class="muted" style="font-size:11px">手动演示</span>`
+            : `<button class="btn btn-outline btn-sm" data-act="runLabCase" data-arg="${c.id}">运行</button>`}
+        </div>`).join('')}
+      </div>`;
+    }).join('')}
+  `);
+}
+async function runLabCase(id) {
+  const c = LAB_CASES.find(x => x.id === id);
+  if (!c) return;
+  const run = {
+    attackTest: () => { S.tab = 'home'; render(); setTimeout(() => attackTest(), 250); },
+    uploadMalicious: () => { S.tab = 'bills'; render(); setTimeout(() => uploadMalicious(), 350); },
+    chatP3Pass: () => { S.tab = 'home'; render(); setTimeout(() => sendChat('修改支付密码'), 250); },
+    verifyChain: () => verifyChain()
+  };
+  if (run[c.run]) run[c.run]();
+  else toast('该用例需手动演示：「' + c.name + '」——' + c.atk, 'ok');
+}
+
 function renderTraces() {
   const list = (typeof TRACES !== 'undefined' && TRACES) || [];
   const cur = currentTrace();
@@ -1350,6 +1453,9 @@ function traceReset() {
 async function render() {
   if (!S.token) return renderLogin('login');
   if (!S.user) return boot();
+  // 攻防实验室是演示账户专属页：非演示账户（含演示账户退出后换人登录）一律回首页，
+  // 与后端 needDemo 鉴权形成前后双重兜底，避免 S.tab 跨登录残留导致越权看到实验页。
+  if (S.tab === 'lab' && !S.isDemo) S.tab = 'home';
   try {
     // 顶栏要在所有页面显示「余额 · 风险等级」，这里统一拉一次并缓存到 S.ov，
     // 首页复用它（不再重复请求），失败时不清空上一次的值，避免顶栏闪成占位符。
@@ -1363,6 +1469,7 @@ async function render() {
     else if (S.tab === 'contacts') await renderContacts();
     else if (S.tab === 'security') await renderSecurity();
     else if (S.tab === 'traces') renderTraces();
+    else if (S.tab === 'lab') renderLab();
   } catch (e) { console.error(e); toast('页面加载失败：' + e.message, 'err'); }
 }
 render();
@@ -1470,7 +1577,9 @@ const ACTIONS = {
   toggleProjection: () => toggleProjection(),
   playTrace: (el, a) => playTrace(a),
   traceNext: () => traceNext(),
-  traceReset: () => traceReset()
+  traceReset: () => traceReset(),
+  // 攻防实验室：把单个用例分发到真实接口（注入攻击 / 恶意账单 / P3 改密 / 审计链校验）
+  runLabCase: (el, a) => runLabCase(a)
 };
 
 const SUBMITS = { doLogin: e => doLogin(e), doRegister: e => doRegister(e) };

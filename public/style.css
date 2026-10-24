@@ -515,18 +515,21 @@ input, select, textarea { font-family: var(--font); font-size: 14px; color: var(
    演示短信面板：白色卡片（原来是一块深色）
    ========================================================================== */
 .sms-panel {
-  position: fixed; right: 20px; bottom: 20px; width: 300px;
+  position: fixed; right: 20px; bottom: 20px; width: auto;
   background: var(--surface); color: var(--ink-800);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
   z-index: 50; box-shadow: var(--sh-lg); overflow: hidden;
+  transition: width .18s ease;
 }
+/* 折叠态收成一颗小胶囊（不遮挡底部输入坞），展开态才展开成 300px 面板 */
+.sms-panel.open { width: 300px; }
 .sms-panel .head {
-  padding: 10px 14px; background: var(--surface-2);
-  border-bottom: 1px solid var(--line);
+  padding: 9px 12px; background: var(--surface-2);
   font-size: 12px; font-weight: 600; color: var(--ink-600);
-  display: flex; justify-content: space-between; align-items: center; cursor: pointer;
+  display: flex; gap: 8px; align-items: center; cursor: pointer; white-space: nowrap;
 }
+.sms-panel.open .head { border-bottom: 1px solid var(--line); justify-content: space-between; }
 .sms-panel .body { padding: 10px 14px; max-height: 200px; overflow-y: auto; font-size: 12px; display: none; }
 .sms-panel.open .body { display: block; }
 .sms-panel .item {
@@ -1159,7 +1162,7 @@ body.projection .topbar { border-bottom-color: #C9C5BE; }
 :focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 /* 演示账户专属：金色发丝线角标 */
 body.demo-account .topbar::after {
-  content: "DEMO ACCOUNT"; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
+  content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
   background: linear-gradient(90deg, transparent, var(--demo) 12%, var(--demo) 88%, transparent);
   opacity: .55;
 }
@@ -1260,4 +1263,60 @@ body.demo-account .topbar::after {
   border-radius: var(--r-md); padding: 10px 12px; font-size: 12.5px; text-align: left;
   display: flex; align-items: center; gap: 8px; }
 .w-item .evi { flex-shrink: 0; }
+/* 卡外演示提示条：与真实资金操作视觉隔离（虚线 = 演示脚手架） */
+.demo-hint {
+  margin-top: 8px; padding: 7px 12px; border-radius: var(--r-sm);
+  background: var(--surface-2); border: 1px dashed var(--line-strong);
+  font-size: 11.5px; color: var(--text-3);
+}
+.demo-hint span { color: var(--gold); font-weight: 600; cursor: pointer; text-decoration: underline dotted; }
+
+/* ==========================================================================
+   攻防实验室 —— 演示账户专属页（renderLab / renderSecurity 对抗台共用）
+   --------------------------------------------------------------------------
+   语义：四层防护（数据隔离/解析/权限/校验）+ 审计链，18 个可复现攻击面。
+   每层一张卡片，用例行只读展示，非手动用例可一键调真实接口复现。
+   ========================================================================== */
+/* 侧栏入口：金色图标 + 用例数角标，与普通功能导航区分开 */
+.nav-item.lab .icon { color: var(--gold); }
+.nav-item.lab .cnt {
+  margin-left: auto; font-family: var(--mono); font-size: 9.5px;
+  background: var(--gold-soft); color: var(--gold);
+  padding: 1px 6px; border-radius: var(--r-full); min-width: 17px; text-align: center;
+}
+.nav-item.lab.active { background: var(--gold-soft); color: #7A4C0F; }
+.nav-item.lab.active::before { background: var(--gold); }
+.lab-layer {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r-lg); padding: 14px 16px 6px; margin-bottom: 12px;
+  box-shadow: var(--sheen), var(--sh-card);
+}
+.lab-layer-head {
+  display: flex; align-items: center; gap: 8px;
+  padding-bottom: 10px; margin-bottom: 4px; border-bottom: 1px solid var(--line);
+}
+.lab-layer-head b { font-size: 14px; letter-spacing: -.01em; }
+.lab-layer-head .muted { margin-left: auto; font-size: 11px; }
+.lab-case {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 2px; border-bottom: 1px dashed var(--line);
+}
+.lab-case:last-child { border-bottom: none; }
+.lab-case .btn { flex-shrink: 0; }
+/* 安全中心「攻防对抗台」：深色驾驶舱下方的演示卡（浅/深两套令牌自适应） */
+.lab-battle {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 12px;
+}
+.lab-battle .battle-stat {
+  background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: var(--r-md); padding: 12px 14px;
+}
+.lab-battle .k { font-size: 11px; color: var(--text-2); margin-bottom: 4px; }
+.lab-battle .v { font-family: var(--num); font-size: 22px; font-weight: 650; font-variant-numeric: tabular-nums; color: var(--ink-900); }
+.lab-battle .v small { font-size: 13px; color: var(--text-2); font-weight: 500; }
+.lab-battle .s { font-size: 11.5px; color: var(--text-2); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 深色安全页下，对抗台统计块用略高于卡片的表面色，标签走驾驶舱说明色 */
+.content.security .battle-stat { background: #23262F; border-color: #2C3038; }
+.content.security .lab-battle .k { color: var(--inst-ink); }
+.content.security .lab-battle .s { color: var(--inst-ink); opacity: .82; }
 
