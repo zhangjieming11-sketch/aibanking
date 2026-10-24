@@ -61,8 +61,8 @@ ok('无 javascript: 伪协议', pseudo === 0, `命中 ${pseudo}`);
 console.log('\n═══ 白名单：前端动作必须都有实现 ═══');
 const acts = [...app.matchAll(/data-act="([a-zA-Z0-9_]+)"/g)].map(m => m[1]);
 const uniq = [...new Set(acts)];
-// 注册形式有两种：`name: (el, a) => ...` 与 `name: el => ...`（无参括号）
-const missing = uniq.filter(a => !new RegExp(`\\b${a}:\\s*(\\(|[a-zA-Z_$]+\\s*=>)`).test(app));
+// 注册形式有三种：`name: (el, a) => ...`、`name: el => ...`、`name: async () => ...`（漏掉 async 会误报）
+const missing = uniq.filter(a => !new RegExp(`\\b${a}:\\s*(async\\s*)?(\\(|[a-zA-Z_$]+\\s*=>)`).test(app));
 ok('data-act 全部在 ACTIONS 中注册', missing.length === 0, missing.length ? '缺失：' + missing.join(',') : `${uniq.length} 个动作`);
 
 console.log('\n' + '─'.repeat(50));
