@@ -1214,6 +1214,8 @@ async function boot() {
   const me = await api('/api/me');
   if (!me.ok) { S.token = ''; LS.del('ab_token'); return render(); }
   S.user = me.user;
+  S.isDemo = !!me.user.isDemo;                       // 身份唯一判据（服务端签发，非 localStorage）
+  document.body.classList.toggle('demo-account', S.isDemo);
   render();
 }
 // ================= E6 黄金轨迹回放（纯静态，断网可用）=================

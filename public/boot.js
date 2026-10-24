@@ -15,6 +15,7 @@ const LS = {
 const S = {  // 全局状态
   token: LS.get('ab_token') || '',
   user: null, tab: 'home',
+  isDemo: false,       // 演示账户身份（服务端签发，非 localStorage）
   chat: [],            // {role:'user'|'bot'|'blocked', text}
   sms: [],             // 演示短信
   collapsed: false,
