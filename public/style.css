@@ -25,7 +25,7 @@
   --text: #17181C;
   --text-2: #5F636E;
   --text-3: #8B8F9A;
-  --bg: #FBFAF8;
+  --bg: #F4F2ED;            /* 加深暖砂色，让白卡「浮」起来 */
   --card: #FFFFFF;
   --border: #EAE8E4;
   --radius: 16px;
@@ -44,8 +44,8 @@
 
   /* ---- 面 ---- */
   --surface: #FFFFFF;
-  --surface-2: #FBFAF8;
-  --surface-3: #F5F3EF;
+  --surface-2: #F7F5F1;
+  --surface-3: #EFEDE7;    /* 略加深，气泡/次级面才有存在感 */
   --surface-blue: #F7F9FC;
   --line: #EAE8E4;
   --line-strong: #DFDDD8;
@@ -98,6 +98,17 @@
   --inst-gold: #E8A33D;    /* 警示：取暖金家族，与全站 3% 暖金桥接 */
   --inst-red: #F0736A;     /* 危险：深底需提亮，否则糊成一团 */
   --inst-ink: #A8ADB8;     /* 说明文字：不用纯白，避免发光晕 */
+
+  /* ---- v6 高级感令牌 ---- */
+  --sh-card: 0 0 0 1px rgba(23,24,28,.03), 0 1px 2px rgba(35,28,20,.05);
+  --sh-raise: 0 1px 2px rgba(35,28,20,.06), 0 8px 24px -12px rgba(35,28,20,.18);
+  --sheen: inset 0 1px 0 rgba(255,255,255,.85);   /* 卡片顶部 1px 高光 */
+  --ease: cubic-bezier(.22,.61,.36,1);
+  --t-fast: 140ms;
+  --t-base: 220ms;
+  --signal: #0F9E8F;          /* 浅底专用深一档的青，保证 AA 对比 */
+  --signal-soft: rgba(15,158,143,.10);
+  --demo: #B8863B;            /* 演示态专属金色 */
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -200,7 +211,8 @@ input, select, textarea { font-family: var(--font); font-size: 14px; color: var(
   transition: background .15s, color .15s;
 }
 .nav-item:hover { background: var(--surface-3); color: var(--ink-900); }
-.nav-item.active { background: var(--brand-soft); color: var(--brand); font-weight: 600; }
+.nav-item.active { background: var(--brand-soft); color: var(--brand); font-weight: 600; position: relative; }
+.nav-item.active::before { content: ""; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 2px; height: 14px; border-radius: 2px; background: var(--brand); }
 .nav-item .icon { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .nav-item .icon svg { width: 17px; height: 17px; stroke: currentColor; stroke-width: 1.6; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 
@@ -302,8 +314,8 @@ input, select, textarea { font-family: var(--font); font-size: 14px; color: var(
 .demo-menu .dm-sep { height: 1px; background: var(--line); margin: 5px 6px; }
 
 /* 内容区：统一 32px 内边距 */
-.content { padding: 28px 32px 40px; flex: 1; }
-.page-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; letter-spacing: -.015em; color: var(--ink-900); }
+.content { padding: 32px 40px 48px; max-width: 1240px; flex: 1; }
+.page-title { font-size: 24px; font-weight: 700; margin-bottom: 4px; letter-spacing: -.02em; color: var(--ink-900); }
 .page-sub { color: var(--text-2); font-size: 12.5px; margin-bottom: 20px; line-height: 1.6; }
 .page-sub a, .page-sub .link { color: var(--brand); text-decoration: none; border-bottom: 1px solid var(--brand-soft); cursor: pointer; }
 .page-sub a:hover, .page-sub .link:hover { border-bottom-color: var(--brand); }
@@ -318,6 +330,9 @@ input, select, textarea { font-family: var(--font); font-size: 14px; color: var(
   border-radius: var(--r-lg);
   padding: 24px;
 }
+/* v6 高级感：卡片统一加顶部 1px 高光 + 极浅微阴影（靠明度差分层，不靠粗边框） */
+.card, .stat-card, .perm-matrix, .trace-list, .fold { box-shadow: var(--sheen), var(--sh-card); }
+.card:hover { box-shadow: var(--sheen), var(--sh-raise); transform: none; }
 .card > b:first-child, .card > strong:first-child { font-size: 14.5px; display: block; margin-bottom: 14px; color: var(--ink-900); }
 
 .grid { display: grid; gap: 16px; }
@@ -331,8 +346,14 @@ input, select, textarea { font-family: var(--font); font-size: 14px; color: var(
   font-size: 13.5px; font-weight: 500;
   transition: all .15s; white-space: nowrap;
 }
-.btn-primary { background: var(--brand); color: #fff; font-weight: 600; }
-.btn-primary:hover { background: var(--brand-ink); }
+.btn-primary {
+  background: linear-gradient(180deg, #3B6EE9, var(--brand));
+  border: 1px solid var(--brand-ink);
+  color: #fff; font-weight: 600;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 1px 2px rgba(30,71,184,.25);
+}
+.btn-primary:hover { background: linear-gradient(180deg, #3B6EE9, var(--brand-ink)); }
+.btn-primary:active { transform: translateY(1px); box-shadow: inset 0 1px 0 rgba(255,255,255,.15); }
 .btn-outline { background: var(--surface); color: var(--ink-700); border: 1px solid var(--line); }
 .btn-outline:hover { border-color: var(--line-strong); color: var(--ink-900); background: var(--surface-2); }
 .btn-danger { background: var(--red); color: #fff; }
@@ -476,13 +497,18 @@ input, select, textarea { font-family: var(--font); font-size: 14px; color: var(
    ========================================================================== */
 .toast-wrap { position: fixed; top: 20px; right: 20px; z-index: 100; display: flex; flex-direction: column; gap: 10px; }
 .toast {
-  background: var(--ink-900); color: #fff;
-  padding: 11px 18px; border-radius: var(--r-md);
+  background: rgba(23, 24, 28, .92); color: #fff;
+  backdrop-filter: blur(8px);
+  padding: 11px 18px 11px 16px; border-radius: var(--r-md);
   font-size: 13px; box-shadow: var(--sh-lg);
   animation: slideIn .22s ease; max-width: 360px; line-height: 1.6;
+  position: relative; overflow: hidden;
 }
-.toast.err { background: var(--red); }
-.toast.ok { background: var(--green); }
+.toast::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--ink-300); }
+.toast.err { background: rgba(196, 56, 43, .94); }
+.toast.err::before { background: #FFD9D4; }
+.toast.ok { background: rgba(18, 128, 92, .94); }
+.toast.ok::before { background: #BFE8D8; }
 @keyframes slideIn { from { transform: translateX(32px); opacity: 0; } to { transform: none; opacity: 1; } }
 
 /* ==========================================================================
@@ -532,7 +558,7 @@ input, select, textarea { font-family: var(--font); font-size: 14px; color: var(
   border-radius: var(--r-md); padding: 18px 20px;
 }
 .stat-card .label { color: var(--text-3); font-size: 11.5px; margin-bottom: 6px; }
-.stat-card .value { font-size: 23px; font-weight: 700; letter-spacing: -.02em; font-family: var(--num); }
+.stat-card .value { font-size: 30px; font-weight: 700; letter-spacing: -.02em; font-family: var(--num); }
 .stat-card .delta { font-size: 11.5px; margin-top: 4px; }
 
 /* 新的指标带：三个数字同属一组事实，用一条带子承载，仅以竖线分隔 */
@@ -544,7 +570,7 @@ input, select, textarea { font-family: var(--font); font-size: 14px; color: var(
   overflow: hidden;
   margin-bottom: 16px;
 }
-.metric-band .mb-cell { flex: 1; padding: 16px 20px; border-right: 1px solid var(--line); }
+.metric-band .mb-cell { flex: 1; padding: 16px 20px; border-right: 1px dashed var(--line); }
 .metric-band .mb-cell:last-child { border-right: none; }
 .metric-band .mb-k { font-size: 11.5px; color: var(--text-3); margin-bottom: 4px; }
 .metric-band .mb-v { font-size: 22px; font-weight: 700; letter-spacing: -.02em; font-family: var(--num); line-height: 1.2; }
@@ -570,7 +596,8 @@ input, select, textarea { font-family: var(--font); font-size: 14px; color: var(
 }
 .prod-card:hover { border-color: var(--line-strong); }
 .prod-card.selected { border-color: var(--brand); background: var(--brand-soft); box-shadow: inset 3px 0 0 var(--brand); }
-.prod-card .rate { font-size: 23px; font-weight: 700; color: var(--red); font-family: var(--num); letter-spacing: -.02em; }
+.prod-card .rate { font-size: 30px; font-weight: 700; color: var(--red); font-family: var(--num); letter-spacing: -.02em; }
+.prod-card::after { content: ""; position: absolute; top: 14px; right: 14px; width: 4px; height: 4px; border-radius: 50%; background: var(--gold); }
 
 /* ==========================================================================
    权限矩阵
@@ -1057,7 +1084,7 @@ body.projection .topbar { border-bottom-color: #C9C5BE; }
   transition: background .16s, color .16s;
 }
 .task-tab:hover { color: var(--ink-700); }
-.task-tab.on { background: #fff; color: var(--ink-900); font-weight: 600; box-shadow: var(--sh-xs); }
+.task-tab.on { background: var(--surface); color: var(--ink-900); font-weight: 600; box-shadow: var(--sh-xs); }
 
 /* ==========================================================================
    黄金轨迹：7 张卡片墙 → 7 行目录
@@ -1120,5 +1147,20 @@ body.projection .topbar { border-bottom-color: #C9C5BE; }
   .topbar .tb-btn { padding: 5px 9px; font-size: 11.5px; }
   .content { padding: 20px; }
   .topbar .tb-label { display: none; }
+}
+
+/* ==========================================================================
+   v6 高级感：eyebrow 微标签 + 演示账户角标 + 焦点环
+   ========================================================================== */
+.eyebrow {
+  font-family: var(--mono); font-size: 10px; font-weight: 600;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--text-3);
+}
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+/* 演示账户专属：金色发丝线角标 */
+body.demo-account .topbar::after {
+  content: "DEMO ACCOUNT"; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--demo) 12%, var(--demo) 88%, transparent);
+  opacity: .55;
 }
 
