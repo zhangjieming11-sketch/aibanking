@@ -55,22 +55,23 @@ async function waitReady(ms) {
 (async () => {
   console.log('\n=== A3 订阅/代扣 + A6 跨场景联动 回归 ===\n');
   const server = spawn(process.execPath, ['server.js'], {
-    cwd: ROOT, env: Object.assign({}, process.env, { PORT: String(PORT) }), stdio: 'ignore'
+    cwd: ROOT,
+    env: Object.assign({}, process.env, { PORT: String(PORT), BANK_DATA_DIR: require('os').tmpdir() + '/ab-test-' + PORT }),
+    stdio: 'ignore'
   });
   const cleanup = () => { try { server.kill(); } catch (e) { /* ignore */ } };
   process.on('exit', cleanup);
 
   if (!await waitReady()) { console.log('服务未就绪'); cleanup(); process.exit(1); }
 
-  // ---- 准备：新账号（隔离演示数据）----
-  const stamp = String(Date.now()).slice(-8);
-  const phone = '139' + stamp;
-  const password = 'test1234';
-  await req('POST', '/api/auth/register', { phone, name: '测试' + stamp.slice(-4), password });
+  // ---- 准备：演示账号 ----
+  // v2.9 起「注册即全新空账户」：新账号没有通讯录/订阅，A3 订阅场景必须跑在演示数据上。
+  // 独立数据目录 + 一次 reset，保证这套用例可重复运行。
+  await req('POST', '/api/demo/reset', {});
+  const phone = '13800000001';
+  const password = 'demo1234';
   let token = (await req('POST', '/api/auth/login', { phone, password })).data.token;
-  // 新用户无支付密码 → 资金动作 fail closed；这里补设，才能测 P2 锁资
-  await req('POST', '/api/security/paypass', { oldPayPass: '', payPassword: '123456' }, token);
-  ok('准备：新账号注册、设支付密码、预置演示订阅', !!token);
+  ok('准备：重置并登录演示账号（3 条预置订阅 + 5 位联系人）', !!token);
 
   // ================= A3.1 订阅扫描 =================
   console.log('\n[A3.1] 订阅扫描');

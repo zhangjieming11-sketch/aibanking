@@ -56,18 +56,19 @@ async function waitReady(ms) {
 (async () => {
   console.log('\n=== C1 / C2 / C3 / C4 / C5 自主性回归 ===\n');
   server = spawn(process.execPath, ['server.js'], {
-    cwd: ROOT, env: Object.assign({}, process.env, { PORT: String(PORT) }), stdio: 'ignore'
+    cwd: ROOT,
+    env: Object.assign({}, process.env, { PORT: String(PORT), BANK_DATA_DIR: require('os').tmpdir() + '/ab-test-' + PORT }),
+    stdio: 'ignore'
   });
   const cleanup = () => { try { if (server) server.kill(); } catch (e) { /* ignore */ } };
   process.on('exit', cleanup);
   if (!await waitReady()) { console.log('服务未就绪'); cleanup(); process.exit(1); }
 
-  const stamp = String(Date.now()).slice(-8);
-  const phone = '136' + stamp;
-  const password = 'test1234';
-  await req('POST', '/api/auth/register', { phone, name: '自主' + stamp.slice(-4), password });
+  // 演示账号：注册即空账户后，新账号没有联系人也没有余额，C1–C5 的「转账/调拨」全部无法成立。
+  await req('POST', '/api/demo/reset', {});
+  const phone = '13800000001';
+  const password = 'demo1234';
   const token = (await req('POST', '/api/auth/login', { phone, password })).data.token;
-  await req('POST', '/api/security/paypass', { oldPayPass: '', payPassword: PAY_PASS }, token);
 
   // ================= C4 指代消解 =================
   console.log('\n[C4] 指代消解');

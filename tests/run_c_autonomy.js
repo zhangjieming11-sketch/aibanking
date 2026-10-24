@@ -51,18 +51,19 @@ async function waitReady(ms) {
 (async () => {
   console.log('\n=== A4.3–A4.5 挂失链路 + C6 工具组合 ===\n');
   server = spawn(process.execPath, ['server.js'], {
-    cwd: ROOT, env: Object.assign({}, process.env, { PORT: String(PORT) }), stdio: 'ignore'
+    cwd: ROOT,
+    env: Object.assign({}, process.env, { PORT: String(PORT), BANK_DATA_DIR: require('os').tmpdir() + '/ab-test-' + PORT }),
+    stdio: 'ignore'
   });
   const cleanup = () => { try { server.kill(); } catch (e) { /* ignore */ } };
   process.on('exit', cleanup);
   if (!await waitReady()) { console.log('服务未就绪'); cleanup(); process.exit(1); }
 
-  const stamp = String(Date.now()).slice(-8);
-  const phone = '137' + stamp;
-  const password = 'test1234';
-  await req('POST', '/api/auth/register', { phone, name: '挂失' + stamp.slice(-4), password });
+  // 演示账号：挂失链路需要「已有代扣订阅 + 多张卡」，新注册的空账户没有这些前提。
+  await req('POST', '/api/demo/reset', {});
+  const phone = '13800000001';
+  const password = 'demo1234';
   const token = (await req('POST', '/api/auth/login', { phone, password })).data.token;
-  await req('POST', '/api/security/paypass', { oldPayPass: '', payPassword: '123456' }, token);
 
   // 准备：绑一张备用卡（挂失迁移需要一个目标）
   const add = await req('POST', '/api/ops/request', { action: 'card.add', params: { name: '备用卡', number: '6222021234567890' } }, token);
