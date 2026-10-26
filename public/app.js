@@ -1008,14 +1008,74 @@ async function addContact() {
   toast(r.message || (r.ok ? '已添加' : '添加失败'), r.ok ? 'ok' : 'err');
   if (r.ok) render();
 }
+// 联系人验证：必须用页内弹窗，不能用 window.prompt()
+// 原生 prompt 会锁死整个页面，右下角短信面板点不动，验证码根本看不到。
+// 另外验证码是本轮才生成的，S.sms 是页面加载时的快照，必须重新拉一次，
+// 否则面板一直显示「暂无短信」（这就是「关掉弹窗后再看，没有验证码内容」的原因）。
 async function startContactVerify(id) {
   const r = await api('/api/contacts/' + id + '/verify/start', 'POST');
   if (!r.ok) return toast(r.message, 'err');
-  const code = prompt(r.message + '\n\n请输入对方收到的 6 位验证码（演示环境可在右下角短信面板查看）：');
-  if (!code) return;
-  const r2 = await api('/api/contacts/' + id + '/verify/confirm', 'POST', { code: String(code).trim() });
-  toast(r2.message, r2.ok ? 'ok' : 'err');
-  if (r2.ok) render();
+
+  const ov = await api('/api/security/overview');
+  if (ov && ov.ok && Array.isArray(ov.smsInbox)) { S.sms = ov.smsInbox; renderSMS(); }
+  // 服务端在 smsInbox 里带了 contactId，能精确定位到本次验证的那条
+  const rec = (S.sms || []).find(s => String(s.contactId) === String(id));
+
+  const old = document.querySelector('.modal-mask'); if (old) old.remove();
+  const mask = document.createElement('div'); mask.className = 'modal-mask';
+  mask.innerHTML = `<div class="modal">
+    <h3>📱 联系人验证</h3>
+    <div class="muted" style="margin-bottom:14px;line-height:1.65">${esc(r.message)}</div>
+    ${rec ? `<div class="cv-code"><span>演示验证码</span><b>${esc(rec.code)}</b><span class="muted">5 分钟内有效</span></div>` : ''}
+    <div class="field"><label>6 位验证码</label>
+      <input id="cv-code" maxlength="6" inputmode="numeric" autocomplete="one-time-code" placeholder="请输入 6 位数字">
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-primary" data-act="submitContactVerify" data-arg="${id}">确认验证</button>
+      <button class="btn btn-outline" data-act="resendContactVerify" data-arg="${id}">重新发送</button>
+      <button class="btn btn-outline" data-act="closeModal">取消</button>
+    </div></div>`;
+  document.body.appendChild(mask);
+  const inp = $('#cv-code');
+  if (inp) { inp.focus(); inp.addEventListener('keydown', e => { if (e.key === 'Enter') submitContactVerify(id); }); }
+}
+
+async function submitContactVerify(id) {
+  const el = $('#cv-code');
+  const code = (el ? el.value : '').trim();
+  if (!/^\d{6}$/.test(code)) return toast('请输入 6 位数字验证码', 'err');
+  const r = await api('/api/contacts/' + id + '/verify/confirm', 'POST', { code });
+  toast(r.message, r.ok ? 'ok' : 'err');
+  if (!r.ok) return;
+  const m = document.querySelector('.modal-mask'); if (m) m.remove();
+  render();
+}
+
+async function resendContactVerify(id) {
+  const m = document.querySelector('.modal-mask'); if (m) m.remove();
+  return startContactVerify(id);
+}
+
+// 理财申购：同样不用 window.prompt（会锁死页面），改页内弹窗取金额
+function subscribeProduct(id) {
+  const old = document.querySelector('.modal-mask'); if (old) old.remove();
+  const mask = document.createElement('div'); mask.className = 'modal-mask';
+  mask.innerHTML = `<div class="modal"><h3>申购金额</h3>
+    <div class="muted" style="margin-bottom:12px">申购属于资金操作，提交后需要你本人输入支付密码 + 短信验证码。</div>
+    <div class="field"><label>金额（元）</label><input id="sb-amt" inputmode="decimal" value="1000" placeholder="如：1000"></div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-primary" data-act="doSubscribe" data-arg="${id}">下一步</button>
+      <button class="btn btn-outline" data-act="closeModal">取消</button></div></div>`;
+  document.body.appendChild(mask);
+  const i = $('#sb-amt');
+  if (i) { i.focus(); i.select(); i.addEventListener('keydown', e => { if (e.key === 'Enter') doSubscribe(id); }); }
+}
+
+async function doSubscribe(id) {
+  const amt = ($('#sb-amt') || {}).value;
+  if (!amt || !/^\d+(\.\d{1,2})?$/.test(String(amt).trim()) || Number(amt) <= 0) return toast('请输入有效的申购金额', 'err');
+  const m = document.querySelector('.modal-mask'); if (m) m.remove();
+  await requestOps('wealth.subscribe', { productId: id, amount: String(amt).trim() });
 }
 async function delContact(id) {
   if (!confirm('确定删除该联系人？删除后向 TA 转账需要重新添加。')) return;
@@ -1544,7 +1604,8 @@ const ACTIONS = {
   confirmModal: (el, a, a2) => confirmModal(a, a2 === 'true'),
   showAssess: () => showAssess(),
   toggleProd: (el, a) => toggleProd(a),
-  subscribe: (el, a) => requestOps('wealth.subscribe', { productId: a, amount: prompt('申购金额（元）', '1000') }),
+  subscribe: (el, a) => subscribeProduct(a),
+  doSubscribe: (el, a) => doSubscribe(a),
   redeem: (el, a) => requestOps('wealth.redeem', { holdingId: a }),
   submitAssess: () => submitAssess(),
   cardAdd: () => requestOps('card.add', { name: $('#nc-name').value, number: $('#nc-num').value }),
@@ -1554,6 +1615,8 @@ const ACTIONS = {
   agentTryRemove: (el, a) => agentTryRemove(a),
   doRemoveCard: (el, a) => doRemoveCard(a),
   startContactVerify: (el, a) => startContactVerify(a),
+  submitContactVerify: (el, a) => submitContactVerify(a),
+  resendContactVerify: (el, a) => resendContactVerify(a),
   delContact: (el, a) => delContact(a),
   addContact: () => addContact(),
   verifyChain: () => verifyChain(),
