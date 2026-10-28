@@ -519,7 +519,8 @@ input, select, textarea { font-family: var(--font); font-size: 14px; color: var(
   background: var(--surface); color: var(--ink-800);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
-  z-index: 50; box-shadow: var(--sh-lg); overflow: hidden;
+  /* 必须高于弹窗遮罩（.modal-mask z-index:90），否则弹窗打开时面板被盖住、验证码看不见 */
+  z-index: 120; box-shadow: var(--sh-lg); overflow: hidden;
   transition: width .18s ease;
 }
 /* 折叠态收成一颗小胶囊（不遮挡底部输入坞），展开态才展开成 300px 面板 */
@@ -638,19 +639,6 @@ input, select, textarea { font-family: var(--font); font-size: 14px; color: var(
   border: 1px solid var(--line); border-radius: var(--r-md); padding: 10px 12px; outline: none;
 }
 .modal input:focus, .modal textarea:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(44, 95, 224, .10); }
-
-/* 联系人验证弹窗内的演示验证码：直接把码摆出来，不必再去点右下角面板 */
-.cv-code {
-  display: flex; align-items: center; gap: 10px;
-  background: var(--signal-soft); border: 1px dashed rgba(15, 158, 143, .38);
-  border-radius: var(--r-md); padding: 10px 14px; margin-bottom: 14px;
-}
-.cv-code span { font-size: 11px; color: var(--text-3); }
-.cv-code b {
-  font-family: var(--num); font-size: 22px; font-weight: 650; letter-spacing: .18em;
-  color: var(--signal); font-variant-numeric: tabular-nums;
-}
-.cv-code span:last-child { margin-left: auto; }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: #D8D5CF; border-radius: var(--r-full); }

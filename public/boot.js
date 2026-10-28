@@ -61,7 +61,9 @@ const yuan = c => (c == null ? '--' : '¥' + (c / 100).toLocaleString('zh-CN', {
 const fmtT = t => new Date(t).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-function refreshSMS() { api('/api/security/overview').then(d => { if (d.ok) { S.sms = d.smsInbox; renderSMS(); } }); }
+// 拉取最新短信验证码并刷新面板。生成验证码的各入口（联系人验证 / 忘记密码 / 授权单 / 转账）
+// 都会调它，因此在这里统一把面板展开，让用户不必再手动点开就能看到最新验证码。
+function refreshSMS() { api('/api/security/overview').then(d => { if (d.ok) { S.sms = d.smsInbox; S.smsOpen = true; renderSMS(); } }); }
 
 // 全局错误兜底：出错时页面顶部给出提示，而不是无响应
 window.addEventListener('error', e => {

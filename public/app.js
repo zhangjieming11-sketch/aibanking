@@ -439,7 +439,7 @@ function renderBlockedCard(m) {
 
 // ---- 忘记支付密码：人脸识别 + 短信验证码双因子重置（纯前端演示动画，不接真实摄像头）----
 function openForgotFace() {
-  // 先发起重置流程：后端生成验证码，显示在右下角短信面板
+  // 先发起重置流程：后端生成验证码，自动展开在页面验证码面板（面板层级高于弹窗，弹窗内也可见）
   api('/api/security/paypass/forgot/start', 'POST').then(r => { if (r.ok) refreshSMS(); });
   const mask = document.createElement('div'); mask.className = 'modal-mask';
   mask.innerHTML = `<div class="modal face-modal">
@@ -453,7 +453,7 @@ function openForgotFace() {
       <input id="ff-sms" maxlength="6" placeholder="短信验证码" inputmode="numeric">
       <input id="ff-new" type="password" maxlength="6" placeholder="新支付密码（6 位数字）" inputmode="numeric">
     </div>
-    <div class="muted" style="margin-top:8px;font-size:12px">演示环境：验证码显示在右下角短信面板；人脸为模拟动画。</div>
+    <div class="muted" style="margin-top:8px;font-size:12px">演示环境：验证码已自动展开在页面「📱 验证码」面板（弹窗之上）；人脸为模拟动画，不接摄像头。</div>
     <div class="modal-foot">
       <button class="btn btn-outline" data-act="closeModal">取消</button>
       <button class="btn btn-primary" data-act="doForgotReset">验证并重置</button>
@@ -1116,24 +1116,23 @@ async function addContact() {
   if (r.ok) render();
 }
 // 联系人验证：必须用页内弹窗，不能用 window.prompt()
-// 原生 prompt 会锁死整个页面，右下角短信面板点不动，验证码根本看不到。
-// 另外验证码是本轮才生成的，S.sms 是页面加载时的快照，必须重新拉一次，
+// 原生 prompt 会锁死整个页面。验证码不再内联在弹窗里，而是统一走页面验证码面板，
+// 面板 z-index(120) 高于弹窗遮罩(90)，弹窗打开时也可见、可点。
+// 验证码是本轮才生成的，S.sms 是页面加载时的快照，必须重新拉一次（refreshSMS / 下面的 overview），
 // 否则面板一直显示「暂无短信」（这就是「关掉弹窗后再看，没有验证码内容」的原因）。
 async function startContactVerify(id) {
   const r = await api('/api/contacts/' + id + '/verify/start', 'POST');
   if (!r.ok) return toast(r.message, 'err');
 
   const ov = await api('/api/security/overview');
-  if (ov && ov.ok && Array.isArray(ov.smsInbox)) { S.sms = ov.smsInbox; renderSMS(); }
-  // 服务端在 smsInbox 里带了 contactId，能精确定位到本次验证的那条
-  const rec = (S.sms || []).find(s => String(s.contactId) === String(id));
+  if (ov && ov.ok && Array.isArray(ov.smsInbox)) { S.sms = ov.smsInbox; S.smsOpen = true; renderSMS(); }
 
   const old = document.querySelector('.modal-mask'); if (old) old.remove();
   const mask = document.createElement('div'); mask.className = 'modal-mask';
   mask.innerHTML = `<div class="modal">
     <h3>📱 联系人验证</h3>
     <div class="muted" style="margin-bottom:14px;line-height:1.65">${esc(r.message)}</div>
-    ${rec ? `<div class="cv-code"><span>演示验证码</span><b>${esc(rec.code)}</b><span class="muted">5 分钟内有效</span></div>` : ''}
+    <div class="muted" style="margin:0 0 14px;font-size:12px">🔑 验证码已自动展开在页面「📱 验证码」面板（右下角，弹窗之上），请查看后回填。演示环境不真实发送短信。</div>
     <div class="field"><label>6 位验证码</label>
       <input id="cv-code" maxlength="6" inputmode="numeric" autocomplete="one-time-code" placeholder="请输入 6 位数字">
     </div>

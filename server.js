@@ -216,7 +216,7 @@ route('POST', '/api/security/paypass/forgot/start', async (req, res) => {
   if (db.smsCodes.length > 100) db.smsCodes = db.smsCodes.slice(-50);
   gateway.audit(u.id, 'user', 'paypass.forgot.start', {}, 'OK', '发起忘记密码重置：人脸识别 + 短信验证码双因子（验证码显示在演示短信面板）');
   store.save();
-  json(res, 200, { ok: true, message: '已发起双重验证，验证码显示在右下角短信面板（演示环境不真实发送）。' });
+  json(res, 200, { ok: true, message: '已发起双重验证，验证码已自动展开在页面短信面板（演示环境不真实发送）。' });
 });
 
 // 忘记支付密码：第二步，校验短信验证码后设置新密码（无需旧密码）
