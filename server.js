@@ -420,6 +420,24 @@ route('GET', '/api/wealth/products', async (req, res) => {
   json(res, 200, { ok: true, list: store.get().products });
 });
 
+// 实时理财行情（演示向）：在 seed 产品参考年化上叠加「确定性」小幅波动，不接真实交易所。
+// 用「产品 id 哈希 + 10 秒时间桶」做伪随机，同一时间桶内多次请求结果一致，
+// 避免行情条每秒乱跳；同时不引入第三方行情依赖与密钥。
+route('GET', '/api/wealth/quotes', async (req, res) => {
+  needAuth(req, res); if (res.writableEnded) return;
+  const bucket = Math.floor(Date.now() / 10000); // 10 秒一个波动档，避免闪烁
+  const list = store.get().products.map(p => {
+    // 由产品 id 与时间桶共同决定本档涨跌，确定性且可复现
+    let h = 0; const seed = p.id + ':' + bucket;
+    for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+    // 涨跌幅控制在 ±2% 内（相对比例），nav 围绕参考年化小幅浮动，符合真实理财行情观感
+    const changePct = +((((h % 401) - 200) / 100)).toFixed(2); // -2.00% ~ +2.00%
+    const nav = +(p.rate * (1 + changePct / 100)).toFixed(4);
+    return { id: p.id, name: p.name, risk: p.risk, nav, changePct, up: changePct >= 0, ts: Date.now() };
+  });
+  json(res, 200, { ok: true, list });
+});
+
 route('GET', '/api/wealth/holdings', async (req, res) => {
   const u = needAuth(req, res); if (!u) return;
   const db = store.get();

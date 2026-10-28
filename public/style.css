@@ -268,6 +268,54 @@ input, select, textarea { font-family: var(--font); font-size: 14px; color: var(
   border-bottom: 1px solid var(--line);
   position: sticky; top: 0; z-index: 8;
 }
+/* 审计链常驻徽标（顶栏）：把「审计哈希链」这个核心防护亮到明处 */
+.topbar .chain-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 26px; padding: 0 10px;
+  font-size: 11.5px; font-weight: 600;
+  border-radius: 999px; border: 1px solid; cursor: pointer;
+  background: transparent; transition: background .15s;
+}
+.topbar .chain-badge.ok { color: #0F7A6E; border-color: #BDE5DF; background: var(--signal-soft); }
+.topbar .chain-badge.bad { color: var(--red); border-color: #EFD5D1; background: #FBF1EF; }
+.topbar .chain-badge em {
+  font-style: normal; font-variant-numeric: tabular-nums;
+  font-size: 10px; padding: 0 6px; border-radius: 999px; background: #fff;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.chain-pop {
+  position: absolute; top: calc(var(--topbar-h) - 6px); right: 150px; z-index: 30;
+  width: 280px; padding: 14px;
+  background: var(--surface); border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg); box-shadow: var(--sh-lg);
+}
+.chain-pop .cp-head { font-weight: 700; margin-bottom: 10px; color: var(--ink-900); }
+.chain-pop .cp-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 5px 0; }
+.chain-pop .cp-row span { color: var(--text-2); }
+.chain-pop .cp-row b { font-weight: 600; color: var(--ink-900); }
+.chain-pop .cp-row b.up { color: #0F7A6E; }
+.chain-pop .cp-row b.down { color: var(--red); }
+.chain-pop .cp-row code { font-size: 11px; font-family: var(--num); color: var(--text-2); max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+.chain-pop .cp-note { font-size: 11px; color: var(--text-3); line-height: 1.6; margin: 8px 0 10px; }
+/* 实时理财行情滚动条 */
+.quote-ticker {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 16px; padding: 8px 12px;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-md);
+  overflow: hidden;
+}
+.quote-ticker .qk-label {
+  flex-shrink: 0; font-size: 11px; font-weight: 600; color: var(--text-2);
+  padding-right: 10px; border-right: 1px solid var(--line);
+}
+.quote-ticker .qk-track { display: flex; gap: 24px; white-space: nowrap; animation: qk-scroll 24s linear infinite; }
+.quote-ticker .qk-item { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; }
+.quote-ticker .qk-item b { color: var(--ink-900); font-weight: 600; }
+.quote-ticker .qk-nav { color: var(--text-2); font-variant-numeric: tabular-nums; font-family: var(--num); }
+.quote-ticker .qk-chg { font-variant-numeric: tabular-nums; font-weight: 600; }
+.quote-ticker .qk-chg.up { color: #C0392B; }
+.quote-ticker .qk-chg.down { color: #0F7A6E; }
+@keyframes qk-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 .topbar .tb-label { font-size: 12px; color: var(--text-3); }
 .topbar-balance { font-size: 15px; font-weight: 700; color: var(--ink-900); letter-spacing: -.01em; }
 .topbar .tb-sep { width: 1px; height: 16px; background: var(--line); margin: 0 4px; }

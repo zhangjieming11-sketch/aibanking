@@ -64,6 +64,7 @@ const GUIDE = [
 if (!S.traceWhy) S.traceWhy = {};
 function renderShell(contentHTML) {
   const ov = S.ov || {};
+  const ck = S.cockpit || {};   // 顶栏审计链徽标数据（render 里统一缓存）
   const pageCls = S.tab === 'security' ? 'security' : '';   // 安全中心整页暗色画布
   app.innerHTML = `
   <div class="layout">
@@ -100,6 +101,18 @@ function renderShell(contentHTML) {
         <span class="tb-risk ${S.user && S.user.riskLevel ? '' : 'none'}">${esc((S.user && S.user.riskLevel) || '未测评')}</span>
         <span class="tb-sep"></span>
         <span class="tb-status"><i class="tb-dot" id="llmDot" style="background:var(--ink-300)"></i><span id="llmBadge">连接中…</span></span>
+        <span class="tb-sep"></span>
+        <button class="chain-badge ${ck.chainOk ? 'ok' : 'bad'}" data-act="toggleChainBadge" title="审计哈希链：每一条操作都串在防篡改链上，点击查看链尾并现场校验">
+          🔗 审计链 ${ck.chainOk ? '完好' : '异常'}<em>${ck.chainCount ?? '—'}</em>
+        </button>
+        ${ck.chainOk !== undefined ? `<div class="chain-pop" id="chainPop" style="display:none">
+          <div class="cp-head">🔗 审计哈希链</div>
+          <div class="cp-row"><span>完整性</span><b class="${ck.chainOk ? 'up' : 'down'}">${ck.chainOk ? '✓ 完整' : '✗ 断裂'}</b></div>
+          <div class="cp-row"><span>已校验</span><b>${ck.chainCount ?? '—'} 条</b></div>
+          <div class="cp-row"><span>链尾哈希</span><code>${esc(String(ck.chainHead || 'GENESIS'))}</code></div>
+          <div class="cp-note">每条含 HMAC(前一条哈希 | 本条内容)，篡改任意一条即被检出。</div>
+          <button class="btn btn-outline btn-sm" style="width:100%" data-act="verifyChain">现场校验完整性</button>
+        </div>` : ''}
         <span class="grow"></span>
         ${S.isDemo ? `<button class="tb-btn demo" data-act="go" data-arg="lab" title="攻防实验室：四层防护逐层验证">🧪 演示台</button>` : ''}
         <button class="tb-btn primary" data-act="toggleDeposit">存入</button>
@@ -966,6 +979,7 @@ async function renderWealth() {
   renderShell(`
     <div class="page-title">理财</div>
     <div class="page-sub">风险测评 · 产品推荐与对比 · 适当性校验 · 申购/赎回（需支付密码 + 短信验证码）</div>
+    <div class="quote-ticker" id="quoteTicker"><span class="qk-label">实时行情（演示）</span><div class="qk-track" id="qkTrack"></div></div>
     <div class="card" style="margin-bottom:16px;display:flex;align-items:center;gap:12px">
       <span class="tag ${S.user.riskLevel ? 'tag-blue' : 'tag-orange'}">${S.user.riskLevel || '未测评'}</span>
       <span class="muted">${S.user.riskLevel ? '你的风险等级。超出等级的产品将被适当性规则自动拦截。' : '完成风险测评后才能申购（金融适当性要求）'}</span>
@@ -992,6 +1006,21 @@ async function renderWealth() {
       <table class="table" style="margin-top:8px"><tr><th>产品</th><th>本金</th><th>持有天数</th><th>估算收益</th><th></th></tr>
       ${holdings.list.map(h => `<tr><td>${esc(h.name)} <span class="tag tag-gray">${h.risk}</span></td><td>${yuan(h.amount)}</td><td>${h.days} 天</td><td style="color:var(--danger)">+${yuan(h.estGain)}</td><td><button class="btn btn-outline btn-sm" data-act="redeem" data-arg="${h.id}">赎回</button></td></tr>`).join('') || '<tr><td colspan="5" class="muted">暂无持仓</td></tr>'}
       </table></div>`);
+  startQuotes();
+}
+// 行情条：轮询 /api/wealth/quotes 渲染滚动项；重复进入只刷新不叠加定时器。
+async function startQuotes() {
+  clearInterval(S._quoteTimer);
+  const paint = async () => {
+    const r = await api('/api/wealth/quotes');
+    const track = document.getElementById('qkTrack');
+    if (!track || !r.ok) return;
+    const items = r.list.map(q => `<span class="qk-item"><b>${esc(q.name)}</b><span class="qk-nav">${q.nav}</span><span class="qk-chg ${q.up ? 'up' : 'down'}">${q.up ? '▲' : '▼'} ${q.changePct}%</span></span>`).join('');
+    // 渲染两份内容，配合 CSS translateX(-50%) 实现无缝循环滚动
+    track.innerHTML = items + items;
+  };
+  paint();
+  S._quoteTimer = setInterval(paint, 3000);
 }
 function toggleProd(id) { S.prodSel = S.prodSel || []; const i = S.prodSel.indexOf(id); if (i >= 0) S.prodSel.splice(i, 1); else { if (S.prodSel.length >= 3) return toast('最多选 3 个对比', 'err'); S.prodSel.push(id); } render(); }
 function showAssess() {
@@ -1406,6 +1435,13 @@ async function verifyChain() {
   const r = await api('/api/security/audit/verify');
   if (r.ok) toast(r.ok ? `✅ 审计链完整：${r.count} 条全部校验通过，链尾 ${String(r.head || '').slice(0, 12)}…` : `❌ 审计链在 ${r.brokenAt && r.brokenAt.ref} 处断裂：${r.brokenAt && r.brokenAt.reason}`, r.ok ? 'ok' : 'err');
 }
+// 顶栏审计链徽标：展开/收起链尾详情浮层
+function toggleChainBadge() {
+  const pop = document.getElementById('chainPop');
+  if (!pop) return;
+  const show = pop.style.display === 'none';
+  pop.style.display = show ? 'block' : 'none';
+}
 async function revokeStanding(id) { const r = await api('/api/security/standing/' + id + '/revoke', 'POST'); toast(r.message, 'ok'); render(); }
 async function saveLimits() { const r = await api('/api/security/limits', 'POST', { single: $('#lim-s').value, daily: $('#lim-d').value }); toast(r.message, r.ok ? 'ok' : 'err'); if (r.ok) render(); }
 async function changePaypass() { const r = await api('/api/security/paypass', 'POST', { oldPayPass: $('#pp-old').value, payPassword: $('#pp-new').value }); toast(r.message, r.ok ? 'ok' : 'err'); }
@@ -1651,6 +1687,8 @@ async function render() {
     // 首页复用它（不再重复请求），失败时不清空上一次的值，避免顶栏闪成占位符。
     const ov = await api('/api/overview');
     if (ov && ov.ok) S.ov = ov;
+    // 顶栏审计链徽标需要 cockpit 的 chainOk/chainCount/chainHead，统一缓存到 S.cockpit
+    if (S.tab !== 'security') { const ck = await api('/api/security/cockpit'); if (ck && ck.ok) S.cockpit = ck; }
     if (S.tab === 'home') { if (ov.ok) renderHome(ov); }
     else if (S.tab === 'bills') await renderBills();
     else if (S.tab === 'transfer') await renderTransfer();
@@ -1756,6 +1794,7 @@ const ACTIONS = {
   delContact: (el, a) => delContact(a),
   addContact: () => addContact(),
   verifyChain: () => verifyChain(),
+  toggleChainBadge: () => toggleChainBadge(),
   revokeStanding: (el, a) => revokeStanding(a),
   saveLimits: () => saveLimits(),
   changePaypass: () => changePaypass(),
