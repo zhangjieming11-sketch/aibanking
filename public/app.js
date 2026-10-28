@@ -857,19 +857,12 @@ async function renderTransfer() {
       <div class="fold-head" data-act="toggleFold" data-arg="transfer">
         <span class="chev">›</span>
         <span class="ttl">普通转账</span>
-        <span class="val" data-fold-val="transfer">收款人 — · 金额 —</span>
+        <span class="val" data-fold-val="transfer">卡号直转</span>
         <span class="act">${S.fold.transfer ? '收起' : '展开填写'}</span>
       </div>
       <div class="fold-body">
-        <div class="fold-row">
-          <div class="field"><label>收款人</label><input id="tf-name" placeholder="如：小红" data-fold-sum="transfer" data-label="收款人"></div>
-          <div class="field"><label>金额（元）</label><input id="tf-amount" type="number" placeholder="100" data-fold-sum="transfer" data-label="金额"></div>
-          <div class="btns"><button class="btn btn-primary" data-act="opTransfer">生成授权单</button></div>
-        </div>
-        <div class="hint-line">方式一：从可信通讯录选择收款人（需先添加并通过验证）</div>
-        <div class="direct-sep">或</div>
         <div class="direct-box">
-          <div class="direct-title">方式二：卡号直转 · 无需提前添加联系人</div>
+          <div class="direct-title">卡号直转 · 填写收款人卡号即可转账，无需提前添加联系人</div>
           <div class="fold-row">
             <div class="field"><label>收款人姓名</label><input id="dt-name" placeholder="如：张三"></div>
             <div class="field"><label>银行卡号</label><input id="dt-account" inputmode="numeric" placeholder="12–19 位数字"></div>
@@ -1796,7 +1789,6 @@ const ACTIONS = {
   doUpload: () => doUpload(),
   uploadMalicious: () => uploadMalicious(),
   closeModal: el => { const m = el.closest('.modal-mask'); if (m) m.remove(); },
-  opTransfer: () => requestOps('transfer.execute', { toName: $('#tf-name').value, amount: $('#tf-amount').value }),
   directTransfer: () => directTransfer(),
   opScheduled: () => requestOps('scheduled.create', { toName: $('#sd-name').value, amount: $('#sd-amount').value, freq: $('#sd-freq').value }),
   opAA: () => requestOps('aa.create', { title: $('#aa-title').value, total: $('#aa-total').value, participants: $('#aa-parts').value }),
