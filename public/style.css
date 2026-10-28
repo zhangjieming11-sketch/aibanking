@@ -779,6 +779,12 @@ input, select, textarea { font-family: var(--font); font-size: 14px; color: var(
   border: 1px solid #EFD5D1; color: var(--red);
   padding: 2px 8px; border-radius: var(--r-sm);
 }
+/* 本人专属操作卡：平静的「需本人完成」，与「攻击已拦截」红色卡区分，避免误读 */
+.blocked-card.self-service {
+  background: #E9F7F1; border: 1px solid #BFE3D6; border-left: 3px solid #2FB37E;
+}
+.blocked-card.self-service .bhead.calm { color: #1F9D6B; }
+.blocked-card.self-service .blocked-actions .btn-primary { background: #1F9D6B; border-color: #1F9D6B; }
 .audit-ref {
   font-family: var(--mono); background: var(--surface);
   border: 1px solid #EFD5D1; padding: 1px 7px;

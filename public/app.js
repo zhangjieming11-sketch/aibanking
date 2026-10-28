@@ -416,6 +416,28 @@ function renderPlanCard(m) {
 }
 
 function renderBlockedCard(m) {
+  // 本人专属操作（助手无权代办，但用户本人可以完成）：用平静的「需本人完成」卡，
+  // 不要套用「攻击已拦截」话术，否则正常诉求会被误读成攻击、还以为被拒了。
+  const SELF_SERVICE = new Set(['paypass.change', 'paypass.forgot', 'phone.unbind', 'security.disable', 'card.remove']);
+  if (m.action && SELF_SERVICE.has(m.action)) {
+    let guideBtn = '';
+    if (m.action === 'paypass.change') {
+      guideBtn = `<div class="blocked-actions"><button class="btn btn-primary btn-sm" data-act="goPaypassEntry">前往安全中心 → 支付密码</button></div>`;
+    } else if (m.action === 'paypass.forgot') {
+      guideBtn = `<div class="blocked-actions"><button class="btn btn-primary btn-sm" data-act="goForgotFace">开始人脸识别 + 短信验证演示</button></div>`;
+    } else {
+      guideBtn = `<div class="blocked-actions"><button class="btn btn-primary btn-sm" data-act="go" data-arg="security">前往安全中心</button></div>`;
+    }
+    // 剥掉「🛡️」前缀与「（证据编号 …）」后缀：这些是攻击卡措辞，本人操作卡不需要，
+    // 但后端审计仍照常入库（安全可追溯），只是不甩到用户脸上。
+    const txt = String(m.text || '').replace(/^🛡️\s*/, '').replace(/（证据编号\s*#?[\w-]+）\s*$/, '');
+    return `<div class="blocked-card self-service">
+      <div class="bhead calm">🔒 该操作需你本人完成</div>
+      <div class="btext">${esc(txt)}</div>
+      ${guideBtn}
+    </div>`;
+  }
+
   const attack = m.attackType || '提示词注入 / 越权操作';
   const layer = m.layer || '数据隔离层';
   const ref = m.ref || (m.auditId ? '#' + m.auditId : '—');
