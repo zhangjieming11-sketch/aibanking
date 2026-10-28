@@ -1,0 +1,46 @@
+<Slide style={{ padding: 60, background: '#0F172A' }}>
+  <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 22 }}>
+    <Box style={{ width: 6, height: 28, background: '#6366F1', borderRadius: 3 }} />
+    <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#F1F5F9' }}>六大场景（总览一页）</Text>
+  </Box>
+  <Box style={{ width: '100%', height: 1, background: '#334155', marginBottom: 22 }} />
+  <Box style={{ gap: 20 }}>
+    <Box style={{ flexDirection: 'row', gap: 20 }}>
+      {[
+        { s: 'S1', t: '对话', h: '双通道 + 时间归一化', c: 'TC-01' },
+        { s: 'S2', t: '账单', h: '下钻 + 不拿支出糊弄收入', c: 'TC-02' },
+        { s: 'S3', t: '订阅', h: '从账单挖出持续性扣费', c: 'TC-03' },
+      ].map((it, i) => (
+        <Box key={i} style={{ flex: 1, background: '#1E293B', border: '1px solid #334155', borderRadius: 12, padding: '18px 22px' }}>
+          <Box style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <Box style={{ background: '#6366F1', borderRadius: 8, padding: '4px 12px' }}><Text style={{ fontSize: 16, fontWeight: 'bold', color: '#FFFFFF' }}>{it.s} {it.t}</Text></Box>
+            <Text style={{ fontSize: 13, color: '#64748B' }}>{it.c}</Text>
+          </Box>
+          <Text style={{ fontSize: 17, color: '#CBD5E1', lineHeight: 1.5 }}>{it.h}</Text>
+        </Box>
+      ))}
+    </Box>
+    <Box style={{ flexDirection: 'row', gap: 20 }}>
+      {[
+        { s: 'S4', t: '卡片', h: '挂失给出代扣迁移方案', c: 'TC-04' },
+        { s: 'S5', t: '理财', h: '会话内测评，不踢回页面', c: 'TC-05' },
+        { s: 'S6', t: '跨场景', h: '六步状态机可逆', c: 'TC-06' },
+      ].map((it, i) => (
+        <Box key={i} style={{ flex: 1, background: '#1E293B', border: '1px solid #334155', borderRadius: 12, padding: '18px 22px' }}>
+          <Box style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <Box style={{ background: '#6366F1', borderRadius: 8, padding: '4px 12px' }}><Text style={{ fontSize: 16, fontWeight: 'bold', color: '#FFFFFF' }}>{it.s} {it.t}</Text></Box>
+            <Text style={{ fontSize: 13, color: '#64748B' }}>{it.c}</Text>
+          </Box>
+          <Text style={{ fontSize: 17, color: '#CBD5E1', lineHeight: 1.5 }}>{it.h}</Text>
+        </Box>
+      ))}
+    </Box>
+  </Box>
+  <Text style={{ fontSize: 15, color: '#64748B', marginTop: 22 }}>S3 是真实痛点（订阅黑洞），S6 是题眼（跨场景可逆状态机）——其余场景均通过同一套纵深防线承接。</Text>
+  <Box style={{ position: 'absolute', bottom: 26, left: 60 }}>
+    <Text style={{ fontSize: 14, color: '#475569' }}>AgentBank · 智能体银行</Text>
+  </Box>
+  <Box style={{ position: 'absolute', bottom: 26, right: 60 }}>
+    <Text style={{ fontSize: 14, color: '#475569' }}>11 / 18</Text>
+  </Box>
+</Slide>

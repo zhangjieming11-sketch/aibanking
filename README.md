@@ -2,6 +2,9 @@
 
 参赛作品：**Agent × 银行融合的安全体系**。零第三方依赖，`node server.js` 即可运行。
 
+- 🌐 线上演示：https://agent-bank-secure.app.workbuddy.host/
+- 📦 GitHub：https://github.com/zhangjieming11-sketch/aibanking
+
 ## 运行
 
 ```bash
@@ -62,16 +65,36 @@ $env:LLM_API_KEY="sk-xxx"; $env:LLM_MODEL="qwen-plus"
 | 撤销窗口 | 大额（≥ ¥1,000）转账享 2 分钟撤销窗口，窗口内一键撤销、资金原路退回 | `lib/banking.js` |
 | 审计 | 全链路日志 + **HMAC 哈希链**（`hash = HMAC(prev_hash | 本条内容)`），提供完整性自校验 | `lib/gateway.js` |
 | 输出过滤 | Agent 对外文案再过一道安全过滤，杜绝"已完成/已绕过"类越权话术 | `lib/agent.js` |
+| 通道隔离 | 转账分 Agent 通讯录通道与**本人卡号直转**通道，Agent 无权把任意卡号变成收款人 | `lib/contacts.js` / `server.js` |
+| 本人高敏感操作 | 忘记/重置支付密码走**人脸核验动画 + 一次性短信验证码**双因子（P3 本人通道，Agent 不可触达） | `public/app.js` / `server.js` |
 
-## 测试（DoD 回归）
+## 测试（DoD 回归，全部可复跑）
 
 ```bash
-npm test          # 注入攻击用例回归（70 条攻击 + 25 条负样本，全绿 + 零误伤）
-npm run test:smoke # 端到端冒烟（需先 node server.js）：登录→驾驶舱→注入拦截→签名→幂等→撤销→审计链
+# 先启动服务（另开一个终端）：node server.js
+# 然后在本项目根目录运行下列脚本（部分需要 BANK_BASE=http://127.0.0.1:3000 环境变量）
+
+node tests/run_attacks.js        # 注入攻击：28 条攻击 + 8 条负样本（拦截率与零误伤同时达标）
+node tests/run_hardening.js      # 安全加固：28/28（限速、schema、3 次锁单、413、通讯录准入）
+node tests/run_race.js           # 并发竞态：6/6（双花/重复退款，资金净变动 ¥0.00）
+node tests/smoke.js              # 端到端冒烟：9/9
+BANK_BASE=http://127.0.0.1:3000 node tests/run_a3a6.js       # 订阅 + 跨场景：30/30
+BANK_BASE=http://127.0.0.1:3000 node tests/run_c_autonomy.js # 挂失 + 自主性：30/30
+BANK_BASE=http://127.0.0.1:3000 node tests/run_context.js    # 上下文：12/12
+BANK_BASE=http://127.0.0.1:3000 node tests/run_product.js    # 产品体验：16/16
+BANK_BASE=http://127.0.0.1:3000 node tests/run_c_more.js     # 自主性扩展
+BANK_BASE=http://127.0.0.1:3000 node tests/run_quality.js     # 质量指标（幻觉率 D2=0% 等）
+BANK_BASE=http://127.0.0.1:3000 node tests/run_planning.js    # 订阅/消费规划 R2：规划与执行
+BANK_BASE=http://127.0.0.1:3000 node tests/run_price_hike.js  # 订阅涨价预警 R2
+BANK_BASE=http://127.0.0.1:3000 node tests/check_competition.js  # 综合核查：37 PASS / 0 PARTIAL / 0 FAIL
+node tests/check_frontend_contract.js  # 前端契约：24/24（卡片字段接线、无内联脚本残留）
 ```
 
-- 攻击用例集：`tests/attacks.md`（6 类 70 条中文注入，附 25 条正常样本防误伤）
-- 门禁脚本：`tests/run_attacks.js`（CI 可直接跑，`node tests/run_attacks.js`，非全绿即报错退出）
+- 用例总量约 **250 条**（含负样本），远超赛题 108 条门槛。
+- 攻击用例集：`tests/attacks.md`（6 类 28 条中文注入，附 8 条正常样本防误伤）。
+- 门禁纪律：每个阶段合并前回归必须**原样全绿**；只允许新增用例，不允许放宽已有断言。
+
+> 📖 完整技术细节与五道安全防线说明见 [`docs/提交材料/技术方案文档.md`](docs/提交材料/技术方案文档.md)；权限分级与已知风险清单见 [`docs/提交材料/安全自评报告.md`](docs/提交材料/安全自评报告.md)；R2 订阅/消费规划增强见 [`docs/提交材料/订阅管理增强_R2.md`](docs/提交材料/订阅管理增强_R2.md)。
 
 ## 演示脚本（建议 5 分钟）
 
@@ -84,6 +107,8 @@ npm run test:smoke # 端到端冒烟（需先 node server.js）：登录→驾�
 6. **幂等 + 撤销**：转 ¥2000（大额）→ 重复提交同一单 → 提示"未重复扣款"；窗口内点"撤销" → 资金退回
 7. **安全驾驶舱**：安全中心顶部看 70/70 徽章、今日拦截、审计链完整性；点"校验完整性"现场验证
 8. **定时转账**：创建（自动生成持续授权）→ 安全中心撤销演示，或等 1 分钟自动执行
+9. **卡号直转**（通道隔离演示）：转账页「卡号直转」填姓名 + 卡号即可转，无需先加联系人；该通道**仅本人手填可触发**，Agent 对话通道无权伪造任意收款卡号
+10. **忘记支付密码**（P3 本人双因子）：安全中心「忘记支付密码？」按钮，或对话输入「我忘记支付密码了」→ 人脸核验动画 + 短信验证码双因子重置（Agent 不可触达）
 
 ## 目录
 

@@ -1,0 +1,32 @@
+<Slide style={{ padding: 60, background: '#0F172A' }}>
+  <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 22 }}>
+    <Box style={{ width: 6, height: 28, background: '#6366F1', borderRadius: 3 }} />
+    <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#F1F5F9' }}>交付形态</Text>
+  </Box>
+  <Box style={{ width: '100%', height: 1, background: '#334155', marginBottom: 28 }} />
+  <Box style={{ flexDirection: 'row', gap: 20, marginBottom: 30 }}>
+    {[
+      { t: 'H5 完整', d: '6 个页面无白屏' },
+      { t: '安全驾驶舱', d: '真实数字非手填' },
+      { t: '投屏演示模式', d: '字号放大 3 米可读' },
+      { t: '黄金轨迹', d: '断网可回放 7 条', hot: true },
+    ].map((it, i) => (
+      <Box key={i} style={{ flex: 1, background: it.hot ? '#1E2A5E' : '#1E293B', border: it.hot ? '1px solid #6366F1' : '1px solid #334155', borderRadius: 12, padding: '22px 24px' }}>
+        <Text style={{ fontSize: 22, fontWeight: 'bold', color: it.hot ? '#A5B4FC' : '#F1F5F9', marginBottom: 12 }}>{it.t}</Text>
+        <Text style={{ fontSize: 17, color: '#CBD5E1', lineHeight: 1.5 }}>{it.d}</Text>
+      </Box>
+    ))}
+  </Box>
+  <Text style={{ fontSize: 18, color: '#CBD5E1' }}>
+    黄金轨迹是给答辩兜底的——现场断网、模型挂了、演示数据被测试打乱，切过去 3 秒内能继续讲。
+  </Text>
+  <Box style={{ position: 'absolute', bottom: 26, right: 60 }}>
+    <Text style={{ fontSize: 15, color: '#A5B4FC', fontFamily: 'Consolas, monospace' }}>node server.js 即可跑，无需 npm install</Text>
+  </Box>
+  <Box style={{ position: 'absolute', bottom: 26, left: 60 }}>
+    <Text style={{ fontSize: 14, color: '#475569' }}>AgentBank · 智能体银行</Text>
+  </Box>
+  <Box style={{ position: 'absolute', bottom: 26, right: 100 }}>
+    <Text style={{ fontSize: 14, color: '#475569' }}>17 / 18</Text>
+  </Box>
+</Slide>

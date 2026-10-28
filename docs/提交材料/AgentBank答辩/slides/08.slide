@@ -1,0 +1,46 @@
+<Slide style={{ padding: 60, background: '#0F172A' }}>
+  <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 22 }}>
+    <Box style={{ width: 6, height: 28, background: '#6366F1', borderRadius: 3 }} />
+    <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#F1F5F9' }}>防线三 · HMAC 参数指纹（最有说服力的一页）</Text>
+  </Box>
+  <Box style={{ width: '100%', height: 1, background: '#334155', marginBottom: 24 }} />
+  <Box style={{ flexDirection: 'row', gap: 28, marginBottom: 22 }}>
+    <Box style={{ width: 420, background: '#1E293B', border: '1px solid #6366F1', borderRadius: 12, padding: 24 }}>
+      <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#A5B4FC', marginBottom: 16 }}>授权单 · Authorization</Text>
+      <Box style={{ gap: 10 }}>
+        <Box style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Text style={{ fontSize: 17, color: '#94A3B8' }}>收款人</Text><Text style={{ fontSize: 17, color: '#E2E8F0' }}>张桂芳</Text></Box>
+        <Box style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Text style={{ fontSize: 17, color: '#94A3B8' }}>金额</Text><Text style={{ fontSize: 17, color: '#E2E8F0' }}>¥100.00</Text></Box>
+        <Box style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Text style={{ fontSize: 17, color: '#94A3B8' }}>收款账户</Text><Text style={{ fontSize: 17, color: '#E2E8F0' }}>6225 **** 8841</Text></Box>
+      </Box>
+      <Box style={{ width: '100%', height: 1, background: '#334155', margin: '16px 0' }} />
+      <Text style={{ fontSize: 15, color: '#64748B', marginBottom: 6 }}>参数指纹</Text>
+      <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#A5B4FC', fontFamily: 'Consolas, monospace', letterSpacing: 2 }}>7F3A·9C21</Text>
+    </Box>
+    <Box style={{ flex: 1, background: '#0B1120', border: '1px solid #334155', borderRadius: 12, padding: 24, justifyContent: 'center' }}>
+      <Text style={{ fontSize: 15, color: '#64748B', marginBottom: 12, fontFamily: 'Consolas, monospace' }}>// 参数指纹</Text>
+      <Text style={{ fontSize: 18, color: '#A5B4FC', fontFamily: 'Consolas, monospace', lineHeight: 1.8 }}>
+        fingerprint =<br/>
+        HMAC-SHA256(<br/>
+        &nbsp;&nbsp;金额 ‖ 收款人<br/>
+        &nbsp;&nbsp;‖ 收款账户 ‖ 资源ID<br/>
+        )<br/>
+        展示给用户：7F3A·9C21
+      </Text>
+    </Box>
+  </Box>
+  <Box style={{ flexDirection: 'row', gap: 24, marginBottom: 18 }}>
+    <Box style={{ flex: 1, background: '#1E293B', border: '1px solid #6366F1', borderRadius: 12, padding: '16px 22px' }}>
+      <Text style={{ fontSize: 18, color: '#E2E8F0' }}><Text style={{ color: '#A5B4FC', fontWeight: 'bold' }}>正常确认</Text> → 成功</Text>
+    </Box>
+    <Box style={{ flex: 1, background: '#1E293B', border: '1px solid #EF4444', borderRadius: 12, padding: '16px 22px' }}>
+      <Text style={{ fontSize: 18, color: '#E2E8F0' }}><Text style={{ color: '#F87171', fontWeight: 'bold' }}>改金额再确认</Text> → 阻断「参数与指纹不匹配」，原单据仍为 ¥100</Text>
+    </Box>
+  </Box>
+  <Text style={{ fontSize: 18, color: '#CBD5E1' }}>这不是靠提示词让模型别改，是 <Text style={{ color: '#A5B4FC', fontWeight: 'bold' }}>数学上改不了</Text>——提示词拦不住中间人、前端 bug、用户手误，只有密码学能。</Text>
+  <Box style={{ position: 'absolute', bottom: 26, left: 60 }}>
+    <Text style={{ fontSize: 14, color: '#475569' }}>AgentBank · 智能体银行</Text>
+  </Box>
+  <Box style={{ position: 'absolute', bottom: 26, right: 60 }}>
+    <Text style={{ fontSize: 14, color: '#475569' }}>08 / 18</Text>
+  </Box>
+</Slide>

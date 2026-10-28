@@ -1,0 +1,40 @@
+<Slide style={{ padding: 60, background: '#0F172A' }}>
+  <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 22 }}>
+    <Box style={{ width: 6, height: 28, background: '#6366F1', borderRadius: 3 }} />
+    <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#F1F5F9' }}>防线四 · 收款人解析层 —— 不猜</Text>
+  </Box>
+  <Box style={{ width: '100%', height: 1, background: '#334155', marginBottom: 24 }} />
+  <Box style={{ flexDirection: 'row', gap: 20, marginBottom: 24 }}>
+    <Box style={{ flex: 1, background: '#1E293B', border: '1px solid #6366F1', borderRadius: 12, padding: '18px 22px' }}>
+      <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#A5B4FC', marginBottom: 10 }}>verified · 已核验</Text>
+      <Text style={{ fontSize: 17, color: '#CBD5E1', lineHeight: 1.5 }}>可转；有同音联系人<Text style={{ color: '#A5B4FC', fontWeight: 'bold' }}>必须提示</Text></Text>
+    </Box>
+    <Box style={{ flex: 1, background: '#1E293B', border: '1px solid #334155', borderRadius: 12, padding: '18px 22px' }}>
+      <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#E2E8F0', marginBottom: 10 }}>pending · 待确认</Text>
+      <Text style={{ fontSize: 17, color: '#CBD5E1', lineHeight: 1.5 }}>单笔上限 <Text style={{ color: '#A5B4FC', fontWeight: 'bold' }}>¥50</Text></Text>
+    </Box>
+    <Box style={{ flex: 1, background: '#1E293B', border: '1px solid #EF4444', borderRadius: 12, padding: '18px 22px' }}>
+      <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#F87171', marginBottom: 10 }}>unknown · 未知</Text>
+      <Text style={{ fontSize: 17, color: '#CBD5E1', lineHeight: 1.5 }}><Text style={{ color: '#F87171', fontWeight: 'bold' }}>直接拒绝</Text>，给两个按钮让用户自己选</Text>
+    </Box>
+  </Box>
+  <Box style={{ flexDirection: 'row', gap: 24 }}>
+    <Box style={{ width: 420, background: '#1E293B', border: '1px solid #334155', borderRadius: 12, padding: 22 }}>
+      <Text style={{ fontSize: 15, color: '#64748B', marginBottom: 12 }}>同音混淆卡</Text>
+      <Text style={{ fontSize: 22, color: '#E2E8F0', marginBottom: 8 }}>妈妈 → 张桂芳</Text>
+      <Text style={{ fontSize: 16, color: '#94A3B8', lineHeight: 1.5 }}>提示还有「妈玛」李梅，需用户二次确认</Text>
+    </Box>
+    <Box style={{ flex: 1, background: '#1E293B', border: '1px solid #6366F1', borderRadius: 12, padding: '18px 24px', justifyContent: 'center' }}>
+      <Text style={{ fontSize: 17, color: '#CBD5E1', lineHeight: 1.6 }}>
+        另设 <Text style={{ color: '#A5B4FC', fontWeight: 'bold' }}>『卡号直转』通道</Text> 供本人手填，与 Agent 通道<Text style={{ color: '#A5B4FC', fontWeight: 'bold' }}>物理隔离</Text>——Agent 无权把任意卡号变成收款人。
+      </Text>
+    </Box>
+  </Box>
+  <Text style={{ fontSize: 15, color: '#64748B', marginTop: 20 }}>解析不到就停下来问。「系统会猜」是攻击者最喜欢的东西。同音识别用同音表，不用编辑距离——避免误伤。</Text>
+  <Box style={{ position: 'absolute', bottom: 26, left: 60 }}>
+    <Text style={{ fontSize: 14, color: '#475569' }}>AgentBank · 智能体银行</Text>
+  </Box>
+  <Box style={{ position: 'absolute', bottom: 26, right: 60 }}>
+    <Text style={{ fontSize: 14, color: '#475569' }}>09 / 18</Text>
+  </Box>
+</Slide>

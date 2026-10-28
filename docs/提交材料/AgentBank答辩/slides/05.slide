@@ -1,0 +1,43 @@
+<Slide style={{ padding: 60, background: '#0F172A' }}>
+  <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 22 }}>
+    <Box style={{ width: 6, height: 28, background: '#6366F1', borderRadius: 3 }} />
+    <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#F1F5F9' }}>系统架构</Text>
+  </Box>
+  <Box style={{ width: '100%', height: 1, background: '#334155', marginBottom: 22 }} />
+  <Box style={{ gap: 0 }}>
+    <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 24, background: '#1E293B', border: '1px solid #334155', borderRadius: 12, padding: '20px 26px' }}>
+      <Box style={{ width: 210 }}>
+        <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#E2E8F0' }}>表现层 <Text style={{ color: '#64748B', fontWeight: 'normal' }}>public/</Text></Text>
+      </Box>
+      <Box style={{ width: 1, height: 46, background: '#334155' }} />
+      <Text style={{ fontSize: 18, color: '#94A3B8', flex: 1, lineHeight: 1.5 }}>可自由重构，不承担安全责任</Text>
+    </Box>
+    <Box style={{ alignItems: 'center', padding: '6px 0' }}>
+      <FAIcon name='arrow-down' style={{ fill: '#6366F1', width: 24, height: 24 }} />
+    </Box>
+    <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 24, background: '#1E293B', border: '1px solid #6366F1', borderRadius: 12, padding: '20px 26px' }}>
+      <Box style={{ width: 210 }}>
+        <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#A5B4FC' }}>网关层 <Text style={{ color: '#64748B', fontWeight: 'normal' }}>gateway</Text></Text>
+      </Box>
+      <Box style={{ width: 1, height: 46, background: '#334155' }} />
+      <Text style={{ fontSize: 18, color: '#CBD5E1', flex: 1, lineHeight: 1.5 }}>数据隔离 / 权限 / schema / <Text style={{ color: '#A5B4FC', fontWeight: 'bold' }}>指纹</Text> / 限速 / <Text style={{ color: '#A5B4FC', fontWeight: 'bold' }}>审计链</Text></Text>
+    </Box>
+    <Box style={{ alignItems: 'center', padding: '6px 0' }}>
+      <FAIcon name='arrow-down' style={{ fill: '#6366F1', width: 24, height: 24 }} />
+    </Box>
+    <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 24, background: '#1E293B', border: '1px solid #334155', borderRadius: 12, padding: '20px 26px' }}>
+      <Box style={{ width: 210 }}>
+        <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#E2E8F0' }}>能力层 <Text style={{ color: '#64748B', fontWeight: 'normal' }}>16 个模块</Text></Text>
+      </Box>
+      <Box style={{ width: 1, height: 46, background: '#334155' }} />
+      <Text style={{ fontSize: 18, color: '#94A3B8', flex: 1, lineHeight: 1.5 }}>资金 / 通讯录 / 订阅 / 挂失 / 记忆 / 计划 / 上下文</Text>
+    </Box>
+  </Box>
+  <Text style={{ fontSize: 15, color: '#64748B', marginTop: 22 }}>零第三方依赖 · 6,200 行 · Node ≥ 18　|　表现层可自由重构——安全责任不在 UI，UI 怎么改都不会破坏安全</Text>
+  <Box style={{ position: 'absolute', bottom: 26, left: 60 }}>
+    <Text style={{ fontSize: 14, color: '#475569' }}>AgentBank · 智能体银行</Text>
+  </Box>
+  <Box style={{ position: 'absolute', bottom: 26, right: 60 }}>
+    <Text style={{ fontSize: 14, color: '#475569' }}>05 / 18</Text>
+  </Box>
+</Slide>

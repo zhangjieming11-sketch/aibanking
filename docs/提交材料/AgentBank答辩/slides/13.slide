@@ -1,0 +1,36 @@
+<Slide style={{ padding: 60, background: '#0F172A' }}>
+  <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 22 }}>
+    <Box style={{ width: 6, height: 28, background: '#6366F1', borderRadius: 3 }} />
+    <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#F1F5F9' }}>S6 跨场景：状态机不由模型编排</Text>
+  </Box>
+  <Box style={{ width: '100%', height: 1, background: '#334155', marginBottom: 30 }} />
+  <Box style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 36 }}>
+    {['记忆', '日历', '锁资(P2)', '下单', '通知', '回执'].map((s, i) => (
+      <Box key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <Box style={{ background: s === '锁资(P2)' ? '#6366F1' : '#1E293B', border: '1px solid', borderColor: s === '锁资(P2)' ? '#6366F1' : '#334155', borderRadius: 10, padding: '12px 16px' }}>
+          <Text style={{ fontSize: 17, fontWeight: 'bold', color: s === '锁资(P2)' ? '#FFFFFF' : (s === '回执' ? '#A5B4FC' : '#E2E8F0') }}>{s}</Text>
+        </Box>
+        {i < 5 && <FAIcon name='arrow-right' style={{ fill: '#6366F1', width: 22, height: 22 }} />}
+      </Box>
+    ))}
+  </Box>
+  <Box style={{ flexDirection: 'row', gap: 20 }}>
+    {[
+      { t: '顺序写死在代码', d: '模型只负责认出「用户要做这件事」' },
+      { t: '自带反操作', d: '逆序回滚即完整撤销' },
+      { t: '只发建议卡', d: '到点主动提醒，绝不静默下单' },
+    ].map((it, i) => (
+      <Box key={i} style={{ flex: 1, background: '#1E293B', border: '1px solid #334155', borderRadius: 12, padding: '18px 22px' }}>
+        <Text style={{ fontSize: 19, fontWeight: 'bold', color: '#A5B4FC', marginBottom: 8 }}>{it.t}</Text>
+        <Text style={{ fontSize: 16, color: '#CBD5E1', lineHeight: 1.5 }}>{it.d}</Text>
+      </Box>
+    ))}
+  </Box>
+  <Text style={{ fontSize: 15, color: '#64748B', marginTop: 22 }}>不让模型编排，避免「先下单后付钱」空转；可逆性必须是结构性的，撤销时才知道该退什么。</Text>
+  <Box style={{ position: 'absolute', bottom: 26, left: 60 }}>
+    <Text style={{ fontSize: 14, color: '#475569' }}>AgentBank · 智能体银行</Text>
+  </Box>
+  <Box style={{ position: 'absolute', bottom: 26, right: 60 }}>
+    <Text style={{ fontSize: 14, color: '#475569' }}>13 / 18</Text>
+  </Box>
+</Slide>

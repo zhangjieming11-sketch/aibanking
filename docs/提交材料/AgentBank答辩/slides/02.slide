@@ -1,0 +1,30 @@
+<Slide style={{ padding: 60, background: '#0F172A' }}>
+  <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 22 }}>
+    <Box style={{ width: 6, height: 26, background: '#6366F1', borderRadius: 3 }} />
+    <Text style={{ fontSize: 15, color: '#818CF8', letterSpacing: 3, fontWeight: 'bold' }}>全场锚点 · THE ANCHOR</Text>
+  </Box>
+  <Text style={{ fontSize: 50, fontWeight: 'bold', color: '#F1F5F9', lineHeight: 1.3, marginBottom: 44 }}>
+    智能体永远只是「申请人」，<br/>永远不是「执行人」。
+  </Text>
+  <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 40 }}>
+    {['能理解', '能规划', '能组合工具'].map((t, i) => (
+      <Box key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+        <Box style={{ background: '#1E293B', border: '1px solid #334155', borderRadius: 10, padding: '14px 24px' }}>
+          <Text style={{ fontSize: 22, color: '#E2E8F0' }}>{t}</Text>
+        </Box>
+        {i < 2 && <FAIcon name='arrow-right' style={{ fill: '#6366F1', width: 26, height: 26 }} />}
+      </Box>
+    ))}
+  </Box>
+  <Box style={{ background: '#1E293B', borderLeft: '4px solid #6366F1', borderRadius: 8, padding: '20px 26px' }}>
+    <Text style={{ fontSize: 22, color: '#CBD5E1' }}>
+      但每一个写操作，都必须回到用户本人的 <Text style={{ color: '#A5B4FC', fontWeight: 'bold' }}>两道凭证</Text>。
+    </Text>
+  </Box>
+  <Box style={{ position: 'absolute', bottom: 26, left: 60 }}>
+    <Text style={{ fontSize: 14, color: '#475569' }}>AgentBank · 智能体银行</Text>
+  </Box>
+  <Box style={{ position: 'absolute', bottom: 26, right: 60 }}>
+    <Text style={{ fontSize: 14, color: '#475569' }}>02 / 18</Text>
+  </Box>
+</Slide>

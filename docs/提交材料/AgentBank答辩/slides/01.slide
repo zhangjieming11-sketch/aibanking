@@ -1,0 +1,16 @@
+<Slide style={{ padding: 60, background: '#0F172A', justifyContent: 'center' }}>
+  <Text style={{ fontSize: 16, color: '#818CF8', letterSpacing: 4, fontWeight: 'bold', marginBottom: 20 }}>
+    2026 深圳国际金融科技大赛 · 人工智能赛道
+  </Text>
+  <Text style={{ fontSize: 72, fontWeight: 'bold', color: '#F1F5F9', lineHeight: 1.12 }}>
+    AgentBank · 智能体银行
+  </Text>
+  <Box style={{ width: 130, height: 4, background: '#6366F1', borderRadius: 2, margin: '26px 0 24px' }} />
+  <Text style={{ fontSize: 30, color: '#CBD5E1' }}>让智能体可以安全地替你办事</Text>
+  <Box style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 70 }}>
+    <Text style={{ fontSize: 18, color: '#94A3B8' }}>参赛队伍 / 成员 / 2026-11-02</Text>
+    <Box style={{ background: '#1E293B', border: '1px solid #334155', borderRadius: 10, padding: '14px 22px' }}>
+      <Text style={{ fontSize: 16, color: '#A5B4FC' }}>零第三方依赖 · 250 条回归用例 · 37 项赛题核查全绿</Text>
+    </Box>
+  </Box>
+</Slide>

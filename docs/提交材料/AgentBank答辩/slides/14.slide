@@ -1,0 +1,31 @@
+<Slide style={{ padding: 60, background: '#0F172A' }}>
+  <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 22 }}>
+    <Box style={{ width: 6, height: 28, background: '#6366F1', borderRadius: 3 }} />
+    <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#F1F5F9' }}>上下文与自主性（技术深度页）</Text>
+  </Box>
+  <Box style={{ width: '100%', height: 1, background: '#334155', marginBottom: 24 }} />
+  <Box style={{ flexDirection: 'row', gap: 20, marginBottom: 26 }}>
+    {[
+      { t: '会话槽位', d: '给妈妈转 → 追问金额 → 用户只回「100」即可继续' },
+      { t: '对象栈', d: '买它 / 取消它 → 落到具体对象；无上下文时不猜' },
+      { t: '长期记忆', d: '7 类白名单 + 类型校验；未存项明确承认，不编造' },
+    ].map((it, i) => (
+      <Box key={i} style={{ flex: 1, background: '#1E293B', border: '1px solid #334155', borderRadius: 12, padding: '18px 22px' }}>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#A5B4FC', marginBottom: 10 }}>{it.t}</Text>
+        <Text style={{ fontSize: 16, color: '#CBD5E1', lineHeight: 1.5 }}>{it.d}</Text>
+      </Box>
+    ))}
+  </Box>
+  <Box style={{ background: '#1E293B', borderLeft: '4px solid #6366F1', borderRadius: 8, padding: '18px 24px' }}>
+    <Text style={{ fontSize: 18, color: '#CBD5E1', lineHeight: 1.6 }}>
+      为什么不把对话历史整个塞进 prompt？<Text style={{ color: '#A5B4FC', fontWeight: 'bold' }}>token 膨胀是小事</Text>——真正的问题是历史里的攻击文本会成为新的注入面，且不可审计。该存「他说要转 100 给妈妈」，不是存「他说的那句话」。
+    </Text>
+  </Box>
+  <Text style={{ fontSize: 15, color: '#64748B', marginTop: 18 }}>没用 RAG：银行业务的答案是数据库里的数字，不是文档段落。</Text>
+  <Box style={{ position: 'absolute', bottom: 26, left: 60 }}>
+    <Text style={{ fontSize: 14, color: '#475569' }}>AgentBank · 智能体银行</Text>
+  </Box>
+  <Box style={{ position: 'absolute', bottom: 26, right: 60 }}>
+    <Text style={{ fontSize: 14, color: '#475569' }}>14 / 18</Text>
+  </Box>
+</Slide>

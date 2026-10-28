@@ -1,0 +1,42 @@
+<Slide style={{ padding: 60, background: '#0F172A' }}>
+  <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 22 }}>
+    <Box style={{ width: 6, height: 28, background: '#6366F1', borderRadius: 3 }} />
+    <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#F1F5F9' }}>S3 订阅黑洞：识别规则必须够硬</Text>
+  </Box>
+  <Box style={{ width: '100%', height: 1, background: '#334155', marginBottom: 24 }} />
+  <Box style={{ flexDirection: 'row', gap: 28, marginBottom: 24 }}>
+    <Box style={{ flex: 1, background: '#1E293B', border: '1px solid #334155', borderRadius: 12, padding: 24 }}>
+      <Text style={{ fontSize: 18, color: '#64748B', marginBottom: 16 }}>三个真实订阅</Text>
+      {[
+        { n: '云盘', p: '¥9' },
+        { n: '视频', p: '¥25' },
+        { n: '音乐', p: '¥15' },
+      ].map((it, i) => (
+        <Box key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#0B1120', borderRadius: 10, marginBottom: 10 }}>
+          <Text style={{ fontSize: 18, color: '#E2E8F0' }}>{it.n}</Text>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#A5B4FC' }}>{it.p}</Text>
+        </Box>
+      ))}
+    </Box>
+    <Box style={{ flex: 1, background: '#1E293B', border: '1px solid #6366F1', borderRadius: 12, padding: 24 }}>
+      <Text style={{ fontSize: 18, color: '#A5B4FC', marginBottom: 16 }}>识别条件（必须同时成立）</Text>
+      <Box style={{ gap: 14 }}>
+        <Text style={{ fontSize: 18, color: '#CBD5E1', lineHeight: 1.5 }}>· 同商户</Text>
+        <Text style={{ fontSize: 18, color: '#CBD5E1', lineHeight: 1.5 }}>· 金额误差 <Text style={{ color: '#A5B4FC', fontWeight: 'bold' }}>±1%</Text></Text>
+        <Text style={{ fontSize: 18, color: '#CBD5E1', lineHeight: 1.5 }}>· 至少两段间隔落在同一周期</Text>
+        <Text style={{ fontSize: 18, color: '#94A3B8', lineHeight: 1.5 }}>排除：电商 / 外卖 / 商超</Text>
+      </Box>
+    </Box>
+  </Box>
+  <Box style={{ background: '#450A0A', border: '1px solid #EF4444', borderRadius: 12, padding: '16px 22px' }}>
+    <Text style={{ fontSize: 17, color: '#FECACA', lineHeight: 1.5 }}>
+      <Text style={{ color: '#F87171', fontWeight: 'bold' }}>踩坑对比：</Text>第一版把「淘宝每周 ¥558」识别成订阅——<Text style={{ color: '#F87171', fontWeight: 'bold' }}>周期性消费 ≠ 订阅</Text>。放宽阈值能识别更多，但全是误报。
+    </Text>
+  </Box>
+  <Box style={{ position: 'absolute', bottom: 26, left: 60 }}>
+    <Text style={{ fontSize: 14, color: '#475569' }}>AgentBank · 智能体银行</Text>
+  </Box>
+  <Box style={{ position: 'absolute', bottom: 26, right: 60 }}>
+    <Text style={{ fontSize: 14, color: '#475569' }}>12 / 18</Text>
+  </Box>
+</Slide>

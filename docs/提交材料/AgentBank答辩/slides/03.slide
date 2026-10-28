@@ -1,0 +1,52 @@
+<Slide style={{ padding: 60, background: '#0F172A' }}>
+  <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 22 }}>
+    <Box style={{ width: 6, height: 28, background: '#6366F1', borderRadius: 3 }} />
+    <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#F1F5F9' }}>行业普遍理解错了难点</Text>
+  </Box>
+  <Box style={{ width: '100%', height: 1, background: '#334155', marginBottom: 28 }} />
+  <Box style={{ flexDirection: 'row', gap: 28 }}>
+    <Box style={{ flex: 1, background: '#1E293B', border: '1px solid #334155', borderRadius: 12, padding: 26 }}>
+      <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#94A3B8', marginBottom: 18 }}>常见认知（误区）</Text>
+      {[
+        { l: '模型不够聪明', d: '会理解错：指代错人、同音字选错' },
+        { l: '多给点上下文就行', d: '会被骗：账单商户名里藏指令' },
+        { l: '换个更大的模型', d: '会幻觉：『上个月』解析成 2023-09' },
+      ].map((it, i) => (
+        <Box key={i}>
+          <Box style={{ marginBottom: 16 }}>
+            <Text style={{ fontSize: 18, color: '#E2E8F0', fontWeight: 'bold', marginBottom: 6 }}>{it.l}</Text>
+            <Text style={{ fontSize: 16, color: '#94A3B8', lineHeight: 1.5 }}>{it.d}</Text>
+          </Box>
+          {i < 2 && <Box style={{ width: '100%', height: 1, background: '#334155', marginBottom: 16 }} />}
+        </Box>
+      ))}
+    </Box>
+    <Box style={{ flex: 1, background: '#1E293B', border: '1px solid #6366F1', borderRadius: 12, padding: 26 }}>
+      <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#A5B4FC', marginBottom: 18 }}>真实难点</Text>
+      {[
+        { l: '理解错', d: '指代错人、同音字选错——意图与对象根本对不上' },
+        { l: '被骗', d: '账单商户名里藏指令——数据即攻击载荷' },
+        { l: '幻觉', d: '『上个月』解析成 2023-09——时间都编出来了' },
+      ].map((it, i) => (
+        <Box key={i}>
+          <Box style={{ marginBottom: 16 }}>
+            <Text style={{ fontSize: 18, color: '#F87171', fontWeight: 'bold', marginBottom: 6 }}>{it.l}</Text>
+            <Text style={{ fontSize: 16, color: '#CBD5E1', lineHeight: 1.5 }}>{it.d}</Text>
+          </Box>
+          {i < 2 && <Box style={{ width: '100%', height: 1, background: '#334155', marginBottom: 16 }} />}
+        </Box>
+      ))}
+    </Box>
+  </Box>
+  <Box style={{ background: '#1E293B', borderLeft: '4px solid #6366F1', borderRadius: 8, padding: '18px 24px', marginTop: 26 }}>
+    <Text style={{ fontSize: 20, color: '#CBD5E1' }}>
+      结论：不能假设模型是对的。模型输出只是 <Text style={{ color: '#A5B4FC', fontWeight: 'bold' }}>「意图提议」</Text>。
+    </Text>
+  </Box>
+  <Box style={{ position: 'absolute', bottom: 26, left: 60 }}>
+    <Text style={{ fontSize: 14, color: '#475569' }}>AgentBank · 智能体银行</Text>
+  </Box>
+  <Box style={{ position: 'absolute', bottom: 26, right: 60 }}>
+    <Text style={{ fontSize: 14, color: '#475569' }}>03 / 18</Text>
+  </Box>
+</Slide>
