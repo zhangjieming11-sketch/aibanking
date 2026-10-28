@@ -299,14 +299,10 @@ input, select, textarea { font-family: var(--font); font-size: 14px; color: var(
 .chain-pop .cp-note { font-size: 11px; color: var(--text-3); line-height: 1.6; margin: 8px 0 10px; }
 /* 实时理财行情滚动条 */
 .quote-ticker {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center;
   margin-bottom: 16px; padding: 8px 12px;
   background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-md);
   overflow: hidden;
-}
-.quote-ticker .qk-label {
-  flex-shrink: 0; font-size: 11px; font-weight: 600; color: var(--text-2);
-  padding-right: 10px; border-right: 1px solid var(--line);
 }
 .quote-ticker .qk-track { display: flex; gap: 24px; white-space: nowrap; animation: qk-scroll 24s linear infinite; }
 .quote-ticker .qk-item { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; }

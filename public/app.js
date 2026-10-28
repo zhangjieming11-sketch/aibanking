@@ -979,7 +979,7 @@ async function renderWealth() {
   renderShell(`
     <div class="page-title">理财</div>
     <div class="page-sub">风险测评 · 产品推荐与对比 · 适当性校验 · 申购/赎回（需支付密码 + 短信验证码）</div>
-    <div class="quote-ticker" id="quoteTicker"><span class="qk-label">实时行情（演示）</span><div class="qk-track" id="qkTrack"></div></div>
+    <div class="quote-ticker" id="quoteTicker"><div class="qk-track" id="qkTrack"></div></div>
     <div class="card" style="margin-bottom:16px;display:flex;align-items:center;gap:12px">
       <span class="tag ${S.user.riskLevel ? 'tag-blue' : 'tag-orange'}">${S.user.riskLevel || '未测评'}</span>
       <span class="muted">${S.user.riskLevel ? '你的风险等级。超出等级的产品将被适当性规则自动拦截。' : '完成风险测评后才能申购（金融适当性要求）'}</span>
