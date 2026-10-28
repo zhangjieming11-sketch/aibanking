@@ -866,7 +866,19 @@ async function renderTransfer() {
           <div class="field"><label>金额（元）</label><input id="tf-amount" type="number" placeholder="100" data-fold-sum="transfer" data-label="金额"></div>
           <div class="btns"><button class="btn btn-primary" data-act="opTransfer">生成授权单</button></div>
         </div>
-        <div class="hint-line">资金操作：生成授权单后需你本人输入支付密码 + 短信码</div>
+        <div class="hint-line">方式一：从可信通讯录选择收款人（需先添加并通过验证）</div>
+        <div class="direct-sep">或</div>
+        <div class="direct-box">
+          <div class="direct-title">方式二：卡号直转 · 无需提前添加联系人</div>
+          <div class="fold-row">
+            <div class="field"><label>收款人姓名</label><input id="dt-name" placeholder="如：张三"></div>
+            <div class="field"><label>银行卡号</label><input id="dt-account" inputmode="numeric" placeholder="12–19 位数字"></div>
+            <div class="field"><label>开户行（选填）</label><input id="dt-bank" placeholder="如：招商银行"></div>
+            <div class="field"><label>金额（元）</label><input id="dt-amount" type="number" placeholder="50"></div>
+            <div class="btns"><button class="btn btn-primary" data-act="directTransfer">卡号直转</button></div>
+          </div>
+          <div class="hint-line">新收款人首次单笔 ≤ ¥50，转账成功后自动登记为待验证联系人；已登记过的卡号按该联系人信任态执行</div>
+        </div>
       </div>
     </div>` : ''}
     ${S.taskTab === 'scheduled' ? `<div class="fold ${S.fold.scheduled ? 'open' : ''}">
@@ -937,22 +949,38 @@ async function revokeTransfer(id) {
 }
 async function tickScheduler() { const r = await api('/api/scheduler/tick', 'POST'); toast(r.fired && r.fired.length ? r.fired.map(f => (f.ok ? '✅' : '⏸️') + f.message + (f.reason || '')).join('；') : '当前没有到期任务', r.fired && r.fired.length ? 'ok' : ''); render(); }
 // UI 发起操作：与 Agent 同样必须走授权单
-async function requestOps(action, params) {
-  const r = await api('/api/ops/request', 'POST', { action, params });
-  if (!r.ok) return toast(r.message, 'err');
-  if (r.free) return render();
-  // 弹确认卡片
+function showApprovalModal(ap) {
   const mask = document.createElement('div'); mask.className = 'modal-mask';
-  const ap = r.approval;
   mask.innerHTML = `<div class="approval-card" style="max-width:100%;box-shadow:var(--shadow)">
     <div class="head">🔐 操作确认卡片 <span class="tag ${ap.level >= 2 ? 'tag-red' : 'tag-orange'}">${ap.level >= 2 ? '资金操作' : '低风险操作'}</span></div>
     <div class="summary">${summaryRows(ap)}<div class="muted" style="float:none">授权单号 ${esc(ap.id.slice(0, 8))}…</div></div>
+    ${ap.warning ? `<div class="payee-warning">⚠️ ${esc(ap.warning)}</div>` : ''}
     ${ap.level >= 2 ? `<div class="cred"><input id="mp-pass" type="password" maxlength="6" placeholder="支付密码"><input id="mp-sms" maxlength="6" placeholder="短信验证码"></div>` : ''}
     <div class="note">⚠️ 确认仅授权本单，验证后单据作废不可复用。</div>
     <div class="actions"><button class="btn btn-primary btn-sm" data-act="confirmModal" data-arg="${ap.id}" data-arg2="${ap.level >= 2}">确认执行</button>
     <button class="btn btn-outline btn-sm" data-act="closeModal">取消</button></div></div>`;
   document.body.appendChild(mask);
   if (ap.level >= 2) refreshSMS();
+}
+
+async function requestOps(action, params) {
+  const r = await api('/api/ops/request', 'POST', { action, params });
+  if (!r.ok) return toast(r.message, 'err');
+  if (r.free) return render();
+  showApprovalModal(r.approval);
+}
+
+// 卡号直转：用户本人在表单手填姓名+卡号，无需事先加入通讯录。
+// 走独立接口 /api/transfers/direct —— 与 Agent 通道隔离，切断注入伪造收款卡号的路径。
+async function directTransfer() {
+  const toName = ($('#dt-name') || {}).value || '';
+  const toAccount = ($('#dt-account') || {}).value || '';
+  const bankName = ($('#dt-bank') || {}).value || '';
+  const amount = ($('#dt-amount') || {}).value || '';
+  if (!toName || !toAccount || !amount) return toast('请填写收款人姓名、卡号和金额', 'err');
+  const r = await api('/api/transfers/direct', 'POST', { toName, toAccount, bankName, amount });
+  if (!r.ok) return toast(r.message, 'err');
+  showApprovalModal(r.approval);
 }
 async function confirmModal(id, needSms) {
   const body = needSms ? { payPassword: $('#mp-pass').value, smsCode: $('#mp-sms').value } : {};
@@ -1769,6 +1797,7 @@ const ACTIONS = {
   uploadMalicious: () => uploadMalicious(),
   closeModal: el => { const m = el.closest('.modal-mask'); if (m) m.remove(); },
   opTransfer: () => requestOps('transfer.execute', { toName: $('#tf-name').value, amount: $('#tf-amount').value }),
+  directTransfer: () => directTransfer(),
   opScheduled: () => requestOps('scheduled.create', { toName: $('#sd-name').value, amount: $('#sd-amount').value, freq: $('#sd-freq').value }),
   opAA: () => requestOps('aa.create', { title: $('#aa-title').value, total: $('#aa-total').value, participants: $('#aa-parts').value }),
   tickScheduler: () => tickScheduler(),

@@ -644,6 +644,47 @@ route('POST', '/api/demo/clock', async (req, res, body) => {
   json(res, 200, { ok: true, clock: r, message: `当前虚拟日期 ${r.virtualNow.slice(0, 10)}` });
 });
 
+// ---------- 卡号直转：用户本人手填姓名+卡号，无需事先加入通讯录 ----------
+// 与「对话/按钮通道」走 resolvePayeeGate 不同：这里是用户本人在表单里填的卡号，
+// 不是 Agent 或 LLM 解析出来的 —— 通道隔离切断了「提示词注入伪造收款卡号」的路径。
+// 新卡号自动登记为 pending 联系人（单笔 ≤ ¥50），完成验证后恢复常规限额；
+// 已登记过的卡号直接复用该联系人的信任态。
+route('POST', '/api/transfers/direct', async (req, res, body) => {
+  const u = needAuth(req, res); if (!u) return;
+  const toName = String((body && body.toName) || '').trim();
+  const toAccount = String((body && body.toAccount) || '').replace(/\s/g, '');
+  const bankName = String((body && body.bankName) || '').trim().slice(0, 50);
+  const amount = body && body.amount;
+
+  if (!toName) return json(res, 400, { ok: false, message: '请填写收款人姓名' });
+  if (!/^\d{12,19}$/.test(toAccount)) return json(res, 400, { ok: false, message: '卡号格式非法（12–19 位数字）' });
+  if (!/^\d+(\.\d{1,2})?$/.test(String(amount || '').replace(/[,，\s]/g, ''))) return json(res, 400, { ok: false, message: '金额格式非法' });
+  const amountCents = Math.round(Number(String(amount).replace(/[,，\s]/g, '')) * 100);
+  if (!(amountCents > 0)) return json(res, 400, { ok: false, message: '金额必须大于 0' });
+
+  const { contact, created } = contacts.upsertForDirectTransfer(u.id, { realName: toName, account: toAccount, bankName });
+
+  // 建单前预检：新收款人（pending）单笔 ≤ ¥50，超限直接拦，不让用户白输一遍密码+短信码
+  const risk = contacts.checkPayeeRisk(u, contact, amountCents);
+  if (risk.level === 'block') {
+    return json(res, 403, { ok: false, blocked: true, message: risk.message });
+  }
+
+  const params = contacts.toPayeeParams(contact, contact.trust);
+  params.amount = String(amount);
+  const opts = {
+    payee: contacts.publicView(contact),
+    warning: contact.trust === 'pending'
+      ? `「${contact.realName}」是${created ? '新收款人（卡号直转自动登记）' : '未验证联系人'}，单笔最多转 ¥50.00；完成验证后可提高限额。`
+      : null,
+    requireAck: risk.level === 'needAck'
+  };
+
+  const result = gateway.createApproval(u, 'user', 'transfer.execute', params, opts);
+  if (result.blocked) return json(res, 403, { ok: false, blocked: true, layer: result.layer, ref: result.ref, message: result.message });
+  json(res, 200, { ok: true, approval: result.approval, newPayee: created });
+});
+
 // ---------- 转账记录 ----------
 route('GET', '/api/transfers', async (req, res) => {
   const u = needAuth(req, res); if (!u) return;

@@ -1128,6 +1128,19 @@ body.projection .topbar { border-bottom-color: #C9C5BE; }
 .fold-body .hint-line { font-size: 11px; color: var(--text-3); padding-top: 8px; }
 .fold-body .forgot-row { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border); }
 
+/* 卡号直转：与通讯录轨道并列的第二种转账方式 */
+.direct-sep {
+  margin: 14px 0 10px; text-align: center;
+  font-size: 11px; color: var(--text-3);
+  display: flex; align-items: center; gap: 10px;
+}
+.direct-sep::before, .direct-sep::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.direct-box {
+  border: 1px dashed var(--border); border-radius: var(--r-md);
+  padding: 12px 14px; background: var(--surface-2);
+}
+.direct-title { font-size: 12px; font-weight: 650; color: var(--text-1); margin-bottom: 4px; }
+
 /* 任务 tab：转账页三张表单只渲染当前那张 */
 .task-tabs {
   display: inline-flex; gap: 2px; background: var(--surface-3);
