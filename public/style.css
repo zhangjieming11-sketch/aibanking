@@ -1082,6 +1082,7 @@ body.projection .topbar { border-bottom-color: #C9C5BE; }
 .fold-body .fold-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; padding-top: 12px; }
 .fold-body .btns { display: flex; gap: 8px; align-items: flex-end; }
 .fold-body .hint-line { font-size: 11px; color: var(--text-3); padding-top: 8px; }
+.fold-body .forgot-row { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border); }
 
 /* 任务 tab：转账页三张表单只渲染当前那张 */
 .task-tabs {

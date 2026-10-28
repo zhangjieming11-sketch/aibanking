@@ -1375,6 +1375,7 @@ async function renderSecurity() {
           </div>
         </div>
         <div class="hint-line">仅限本人操作：智能助手即使被要求也无权修改</div>
+        <div class="forgot-row"><button class="btn btn-outline btn-sm" data-act="goForgotFace">🔐 忘记支付密码？走人脸识别 + 短信验证重置</button></div>
       </div>
     </div>
 

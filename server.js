@@ -87,8 +87,19 @@ function serveStatic(req, res, urlPath) {
   if (!file.startsWith(path.join(__dirname, 'public'))) { res.writeHead(403); res.end(); return; }
   fs.readFile(file, (err, data) => {
     if (err) { res.writeHead(404, SEC_HEADERS); res.end('Not Found'); return; }
-    res.writeHead(200, { ...SEC_HEADERS, 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream' });
-    res.end(data);
+    const ext = path.extname(file);
+    let out = data;
+    // 给静态引用打文件 mtime 版本号，破除线上 CDN/浏览器对 /app.js 等资源的缓存，
+    // 否则部署新版本后用户刷新仍可能拉到旧 JS（表现为「还是被拦截」的红卡）。
+    if (ext === '.html') {
+      const base = path.join(__dirname, 'public');
+      out = data.toString().replace(/(src|href)="(\/(?:boot|app|traces|style)\.(?:js|css))"/g, (m, attr, p) => {
+        try { return `${attr}="${p}?v=${Math.floor(fs.statSync(path.join(base, p)).mtimeMs)}"`; }
+        catch (e) { return m; }
+      });
+    }
+    res.writeHead(200, { ...SEC_HEADERS, 'Content-Type': MIME[ext] || 'application/octet-stream' });
+    res.end(out);
   });
 }
 
