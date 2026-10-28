@@ -1333,3 +1333,56 @@ body.demo-account .topbar::after {
 .content.security .lab-battle .k { color: var(--inst-ink); }
 .content.security .lab-battle .s { color: var(--inst-ink); opacity: .82; }
 
+/* 拦截卡内的引导按钮区 */
+.blocked-card .blocked-actions { margin-top: 12px; }
+
+/* 忘记密码：人脸识别 + 短信验证码演示弹窗 */
+.face-modal { max-width: 380px; }
+.face-stage {
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  padding: 24px 16px; background: #0F1218; border-radius: var(--r-md);
+}
+.face-ring {
+  position: relative; width: 128px; height: 128px; border-radius: 50%;
+  border: 2px solid rgba(82, 200, 255, .35); overflow: hidden;
+}
+.face-ring::before {
+  content: ""; position: absolute; inset: 18px; border-radius: 50%;
+  background: radial-gradient(circle at 50% 42%, rgba(255,255,255,.16) 0%, rgba(82,200,255,.10) 55%, transparent 75%);
+}
+.face-ring::after {
+  /* 人脸轮廓示意 */
+  content: ""; position: absolute; left: 50%; top: 30%; transform: translateX(-50%);
+  width: 40px; height: 48px; border-radius: 46% 46% 48% 48%;
+  border: 3px solid rgba(255,255,255,.55);
+}
+.face-scan {
+  position: absolute; left: 0; right: 0; top: -20%; height: 40%;
+  background: linear-gradient(180deg, transparent, rgba(82,200,255,.5), transparent);
+  animation: faceScan 1.4s ease-in-out infinite;
+}
+@keyframes faceScan {
+  0% { top: -20%; }
+  100% { top: 120%; }
+}
+.face-ring.done { border-color: #3ED598; }
+.face-ring.done .face-scan { animation: none; display: none; }
+.face-ring.done::after { border-color: #3ED598; }
+.face-status { font-size: 13px; color: #A8C6DF; }
+.face-status.ok { color: #3ED598; font-weight: 600; }
+
+/* 收款人选择器弹窗 */
+.payee-pick-list { display: grid; gap: 8px; max-height: 240px; overflow-y: auto; margin-bottom: 12px; }
+.payee-pick-item {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: var(--r-md); cursor: pointer;
+  transition: border-color .15s;
+}
+.payee-pick-item:hover { border-color: var(--brand); }
+.payee-pick-item input { accent-color: var(--brand); }
+.payee-pick-item .pk-name { font-weight: 600; color: var(--ink-900); }
+.payee-pick-item .pk-meta { font-size: 12px; color: var(--text-3); }
+.payee-pick-manual { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.payee-pick-manual input { flex: 1; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--r-sm); outline: none; }
+.payee-pick-manual input:focus { border-color: var(--brand); }
+

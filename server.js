@@ -207,6 +207,39 @@ route('POST', '/api/security/paypass', async (req, res, body) => {
   json(res, 200, { ok: true, message: '支付密码已设置' });
 });
 
+// 忘记支付密码：第一步，发起人脸识别 + 短信验证码双因子（演示环境不真实发送）
+route('POST', '/api/security/paypass/forgot/start', async (req, res) => {
+  const u = needAuth(req, res); if (!u) return;
+  const db = store.get();
+  const code = require('./lib/util').smsCode();
+  db.smsCodes.push({ phone: u.phone, code, purpose: '重置支付密码', userId: u.id, expiresAt: Date.now() + 5 * 60 * 1000 });
+  if (db.smsCodes.length > 100) db.smsCodes = db.smsCodes.slice(-50);
+  gateway.audit(u.id, 'user', 'paypass.forgot.start', {}, 'OK', '发起忘记密码重置：人脸识别 + 短信验证码双因子（验证码显示在演示短信面板）');
+  store.save();
+  json(res, 200, { ok: true, message: '已发起双重验证，验证码显示在右下角短信面板（演示环境不真实发送）。' });
+});
+
+// 忘记支付密码：第二步，校验短信验证码后设置新密码（无需旧密码）
+route('POST', '/api/security/paypass/forgot', async (req, res, body) => {
+  const u = needAuth(req, res); if (!u) return;
+  const { smsCode, payPassword } = body;
+  if (!/^\d{6}$/.test(String(payPassword || ''))) return json(res, 400, { ok: false, message: '支付密码为 6 位数字' });
+  const db = store.get();
+  const rec = (db.smsCodes || [])
+    .filter(s => s.userId === u.id && s.purpose === '重置支付密码' && s.expiresAt > Date.now() && !s.usedAt)
+    .pop();
+  if (!rec) return json(res, 400, { ok: false, message: '验证码已过期，请重新发起' });
+  if (String(rec.code) !== String(smsCode || '').trim()) {
+    gateway.audit(u.id, 'user', 'paypass.forgot', {}, 'REJECTED', '重置支付密码验证码错误');
+    return json(res, 400, { ok: false, message: '验证码错误' });
+  }
+  rec.usedAt = Date.now();
+  u.payPasswordHash = hashPassword(payPassword);
+  gateway.audit(u.id, 'user', 'paypass.forgot', {}, 'OK', '用户通过人脸识别 + 短信验证码重置支付密码（Agent 对此操作无权限）');
+  store.save();
+  json(res, 200, { ok: true, message: '支付密码已重置' });
+});
+
 // ---------- Agent 对话 ----------
 route('GET', '/api/agent/status', async (req, res) => {
   needAuth(req, res); if (res.writableEnded) return;
