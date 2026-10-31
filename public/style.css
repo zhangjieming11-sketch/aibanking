@@ -1438,3 +1438,30 @@ body.demo-account .topbar::after {
 .payee-pick-manual input { flex: 1; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--r-sm); outline: none; }
 .payee-pick-manual input:focus { border-color: var(--brand); }
 
+/* 注入攻击菜单：六种手法一行一条，右侧「发起」按钮 */
+.attack-list { display: grid; gap: 8px; max-height: 340px; overflow-y: auto; margin-bottom: 14px; }
+.attack-item {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  transition: border-color .15s, background .15s;
+}
+.attack-item:hover { border-color: var(--red); background: var(--red-soft); }
+.attack-item .btn { flex-shrink: 0; }
+
+/* 账单页：两大功能并列卡片（订阅管理增强 / 消费规划）—— 均可折叠，进入账单即同时可见 */
+.feat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+@media (max-width: 1100px) { .feat-grid { grid-template-columns: 1fr; } }
+.feat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; }
+.feat-head { display: flex; align-items: center; gap: 10px; padding: 13px 16px; cursor: pointer; user-select: none; }
+.feat-head:hover { background: var(--surface-2); }
+.feat-ico { width: 30px; height: 30px; border-radius: 8px; background: var(--brand-soft); color: var(--brand); display: flex; align-items: center; justify-content: center; font-size: 15px; flex: 0 0 auto; }
+.feat-t { font-weight: 650; font-size: 14.5px; }
+.feat-sum { margin-left: auto; font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; text-align: right; }
+.feat-chev { color: var(--text-3); flex: 0 0 auto; transition: transform .18s ease; }
+.feat-card.collapsed .feat-chev { transform: rotate(-90deg); }
+.feat-card.collapsed .feat-body { display: none; }
+.feat-body { padding: 4px 16px 16px; border-top: 1px solid var(--border); }
+.pf-input { width: 100%; padding: 9px 12px; border: 1px solid var(--line); border-radius: var(--r-sm); font-family: inherit; font-size: 14px; outline: none; margin-bottom: 2px; }
+.pf-input:focus { border-color: var(--brand); }
+.pf-radio { display: flex; align-items: center; gap: 5px; font-size: 14px; cursor: pointer; }
+

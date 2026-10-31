@@ -13,6 +13,8 @@ const limits = require('./lib/limits');
 const contacts = require('./lib/contacts');
 const subscriptions = require('./lib/subscriptions');
 const plans = require('./lib/plans');
+const finance = require('./lib/finance');   // 智能财务管理 · 消费分析（纯只读 P0）
+const planning = require('./lib/planning'); // 消费规划 · 可行性诊断（纯只读 P0，金额服务端算）
 
 store.load();
 const PORT = process.env.PORT || 3000;
@@ -110,16 +112,6 @@ function route(method, pattern, handler) {
   const rx = new RegExp('^' + pattern.replace(/:[^/]+/g, m => { keys.push(m.slice(1)); return '([^/]+)'; }) + '$');
   routes.push({ method, rx, keys, handler });
 }
-
-// ---------- 调试：确认网关是否透传 Authorization 头 ----------
-route('GET', '/api/debug/headers', async (req, res) => {
-  json(res, 200, {
-    ok: true,
-    authorization: req.headers['authorization'] || null,
-    xToken: req.headers['x-token'] || null,
-    received: Object.keys(req.headers)
-  });
-});
 
 // ---------- 认证 ----------
 route('POST', '/api/auth/register', async (req, res, body) => {
@@ -414,6 +406,15 @@ route('POST', '/api/bills/upload', async (req, res, body) => {
   json(res, 200, { ok: true, imported, failed, sanitized: scan.hitCount, message: `成功导入 ${imported} 笔账单${scan.hitCount ? `；检测并清洗了 ${scan.hitCount} 处提示词注入内容（详见安全日志）` : ''}` });
 });
 
+// ---------- 智能财务管理 · 消费分析（P0 只读）----------
+route('GET', '/api/bills/insights', async (req, res) => {
+  const u = needAuth(req, res); if (!u) return;
+  const months = Math.min(12, Math.max(1, Number(req.url.searchParams.get('months')) || 3));
+  const r = finance.analyzeSpending(u.id, months);
+  gateway.audit(u.id, 'agent', 'finance.insights', { months }, 'OK', '智能财务分析（P0 只读，不碰资金）');
+  json(res, 200, r);
+});
+
 // ---------- 理财 ----------
 route('GET', '/api/wealth/products', async (req, res) => {
   needAuth(req, res); if (res.writableEnded) return;
@@ -597,13 +598,36 @@ route('GET', '/api/subscriptions', async (req, res) => {
   const u = needAuth(req, res); if (!u) return;
   const list = subscriptions.listFor(u.id);
   const active = list.filter(s => s.status !== 'cancelled');
+  const ann = subscriptions.annualized(u.id);
+  const hikes = subscriptions.detectPriceHike(u.id);
   json(res, 200, {
     ok: true, list, activeCount: active.length,
     duplicateCount: active.filter(s => s.duplicateCount > 0).length,
-    monthlyCents: active.reduce((s, x) => s + (x.cycle === 'yearly' ? Math.round(x.amount / 12)
-      : x.cycle === 'quarterly' ? Math.round(x.amount / 3)
-      : x.cycle === 'weekly' ? x.amount * 4 : x.amount), 0)
+    monthlyCents: ann.monthlyCents,
+    annualizedCents: ann.yearlyCents,           // N4 年化合计
+    hikes,                                       // N1 涨价检测（续费刺客）
+    upcoming: subscriptions.upcomingCharges(u.id, 3),   // N3 到期前 T-3 提醒
+    trialRisk: subscriptions.trialRisk(u.id)            // N5 试用转付费预警
   });
+});
+
+// N1 申诉涨价差价（P1）：照抄重复扣费申诉，写 disputes
+route('POST', '/api/subscriptions/report-hike', async (req, res, body) => {
+  const u = needAuth(req, res); if (!u) return;
+  const merchant = String(body && body.merchant || '').trim();
+  if (!merchant) return json(res, 400, { ok: false, message: '缺少商户名' });
+  const r = subscriptions.reportHike(u.id, merchant, body && body.note);
+  gateway.audit(u.id, 'agent', 'subscription.reportHike', { merchant }, r.ok ? 'OK' : 'BLOCKED', r.message);
+  json(res, r.ok ? 200 : 400, r);
+});
+
+// N2 扣款溯源：点「这笔是什么」→ 商户全称 / 支付渠道 / 首次签约 / 取消途径
+route('GET', '/api/subscriptions/trace', async (req, res) => {
+  const u = needAuth(req, res); if (!u) return;
+  const merchant = (req.url.searchParams.get('merchant') || '').trim();
+  if (!merchant) return json(res, 400, { ok: false, message: '缺少商户名' });
+  gateway.audit(u.id, 'agent', 'subscription.trace', { merchant }, 'OK', '扣款溯源（P0 只读）');
+  json(res, 200, { ok: true, trace: subscriptions.trace(u.id, merchant) });
 });
 
 // ---------- A6 记忆 / 计划 / 通知 ----------
@@ -616,6 +640,17 @@ route('GET', '/api/plans', async (req, res) => {
   const u = needAuth(req, res); if (!u) return;
   const list = plans.find(u.id).map(plans.publicView);
   json(res, 200, { ok: true, list, clock: { offsetDays: Math.round(plans.clock(u.id) / 86400000) } });
+});
+
+// 消费规划 · 可行性诊断（P0 只读）：现金流/支出结构/杠杆 全部服务端算，金额标来源
+route('POST', '/api/planning/assess', async (req, res, body) => {
+  const u = needAuth(req, res); if (!u) return;
+  const category = String((body && body.category) || 'other');
+  const targetDate = (body && body.targetDate) || null;
+  const targetAmount = (body && body.targetAmount != null && Number(body.targetAmount) > 0)
+    ? Math.round(Number(body.targetAmount) * 100) : null; // 元 → 分
+  gateway.audit(u.id, 'agent', 'plan.assess', { category, targetDate }, 'OK', '消费规划可行性诊断（P0 只读，金额服务端算）');
+  json(res, 200, planning.assess(u, { category, targetDate, targetAmount }));
 });
 
 route('GET', '/api/notifications', async (req, res) => {

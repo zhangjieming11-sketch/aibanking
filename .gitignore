@@ -3,6 +3,9 @@ data/db.json
 data/db.json.tmp
 data/db.json.bak
 
+# 调试用数据库快照（含演示数据，不应入库）
+data_debug/
+
 # 【重要】含真实 API Key，绝不提交
 data/llm-config.json
 

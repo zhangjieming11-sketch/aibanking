@@ -33,7 +33,11 @@ const S = {  // 全局状态
   projection: LS.get('ab_proj') === '1' || /[?&]proj=1/.test(location.search),
   // E6 黄金轨迹回放：traceId 为 null 表示未在回放
   traceId: null,
-  traceStep: 0
+  traceStep: 0,
+  // 账单页两大功能并列卡片的折叠状态：0 展开 / 1 折叠
+  featFold: { sub: 0, plan: 0 },
+  // 账单页「消费规划」内联流程状态机：form → diag → approval → done
+  featPlan: { step: 'form', planning: null, approval: null, plan: null, form: {} }
 };
 
 // 投屏模式在首帧就生效，避免答辩时先看到小字再跳成大字
