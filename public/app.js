@@ -839,7 +839,7 @@ async function sendChat(text) {
   try { got = await streamChat(msg, bubble); } catch (e) { got = null; }
   if (got) {
     S.chat[S.chat.length - 1] = got;
-    if (got.approval) refreshSMS();
+    if (got.approval && got.approval.needSms) refreshSMS();
   } else {
     S.chat.pop();
     const r = await api('/api/agent/chat', 'POST', { message: msg });
@@ -851,7 +851,7 @@ async function sendChat(text) {
       assessCard: r.assessCard || null, products: r.products || null, needPayPass: !!r.needPayPass,
       insights: r.data || null, subscriptionHikes: r.subscriptionHikes || null, trace: r.trace || null,
       planning: r.planning || null });
-    if (r.approval) refreshSMS();
+    if (r.approval && r.approval.needSms) refreshSMS();
   }
   render();
 }
@@ -939,6 +939,7 @@ async function streamChat(msg, bubble) {
 async function confirmApproval(id, needSms, tamper) {
   const body = {};
   const idx = S.chat.findIndex(m => m.approval && m.approval.id === id);
+  const ap = idx >= 0 ? S.chat[idx].approval : null;
   if (needSms) {
     const pp = $('#ap-pass-' + id) ? $('#ap-pass-' + id).value : '';
     const sc = $('#ap-sms-' + id) ? $('#ap-sms-' + id).value : '';
@@ -969,6 +970,16 @@ async function confirmApproval(id, needSms, tamper) {
     if (r.ok) { S.featPlan.step = 'done'; S.featPlan.plan = r.plan || null; }
     else { S.featPlan.step = 'diag'; }
     S.featPlan.approval = null;
+  }
+  // 订阅类操作（取消/申诉）确认成功后，回读最新订阅列表并刷新聊天里已有的「自动扣费清单」卡，
+  // 否则那张卡是旧快照，取消后仍显示「活跃 + 取消按钮」，看起来像「点了没反应」。
+  if (r.ok && ap && String(ap.action || '').startsWith('subscription')) {
+    try {
+      const subs = await api('/api/subscriptions');
+      if (subs && subs.ok && Array.isArray(subs.list)) {
+        S.chat.forEach(m => { if (Array.isArray(m.subscriptions)) m.subscriptions = subs.list; });
+      }
+    } catch (e) { /* 刷新失败不影响已完成的取消 */ }
   }
   toast(r.message, r.ok ? 'ok' : 'err');
   render(); refreshSMS();
