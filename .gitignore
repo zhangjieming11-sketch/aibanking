@@ -18,3 +18,7 @@ Thumbs.db
 # 编辑器
 .vscode/
 .idea/
+
+# PPT 生成过程的本地缓存（可再生，不入库、不随提交包分发）
+docs/提交材料/AgentBank答辩/.cache/
+docs/提交材料/AgentBank答辩/.slidep/
