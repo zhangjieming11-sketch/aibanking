@@ -74,7 +74,7 @@ $env:LLM_API_KEY="sk-xxx"; $env:LLM_MODEL="qwen-plus"
 # 先启动服务（另开一个终端）：node server.js
 # 然后在本项目根目录运行下列脚本（部分需要 BANK_BASE=http://127.0.0.1:3000 环境变量）
 
-node tests/run_attacks.js        # 注入攻击：28 条攻击 + 8 条负样本（拦截率与零误伤同时达标）
+node tests/run_attacks.js        # 注入攻击：70 条攻击 + 25 条负样本（拦截率与零误伤同时达标）
 node tests/run_hardening.js      # 安全加固：28/28（限速、schema、3 次锁单、413、通讯录准入）
 node tests/run_race.js           # 并发竞态：6/6（双花/重复退款，资金净变动 ¥0.00）
 node tests/smoke.js              # 端到端冒烟：9/9
@@ -91,7 +91,7 @@ node tests/check_frontend_contract.js  # 前端契约：24/24（卡片字段接�
 ```
 
 - 用例总量约 **250 条**（含负样本），远超赛题 108 条门槛。
-- 攻击用例集：`tests/attacks.md`（6 类 28 条中文注入，附 8 条正常样本防误伤）。
+- 攻击用例集：`tests/attacks.md`（6 类 70 条中文注入，附 25 条正常样本防误伤）。
 - 门禁纪律：每个阶段合并前回归必须**原样全绿**；只允许新增用例，不允许放宽已有断言。
 
 > 📖 完整技术细节与五道安全防线说明见 [`docs/提交材料/技术方案文档.md`](docs/提交材料/技术方案文档.md)；权限分级与已知风险清单见 [`docs/提交材料/安全自评报告.md`](docs/提交材料/安全自评报告.md)；R2 订阅/消费规划增强见 [`docs/提交材料/订阅管理增强_R2.md`](docs/提交材料/订阅管理增强_R2.md)。

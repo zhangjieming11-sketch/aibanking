@@ -2467,6 +2467,9 @@ const ACTIONS = {
   createPlanInline: () => createPlanInline(),
   execPlanInline: () => execPlanInline(),
   resetPlanInline: () => resetPlanInline(),
+  // R2 订阅/消费规划：新建规划弹窗 + 生成规划
+  openPlanModal: () => openPlanModal(),
+  doCreatePlan: () => doCreatePlan(),
   closeModal: el => { const m = el.closest('.modal-mask'); if (m) m.remove(); },
   directTransfer: () => directTransfer(),
   opScheduled: () => requestOps('scheduled.create', { toName: $('#sd-name').value, amount: $('#sd-amount').value, freq: $('#sd-freq').value }),
