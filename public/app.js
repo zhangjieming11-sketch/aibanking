@@ -830,6 +830,10 @@ async function sendChat(text) {
   const msg = text || (input && input.value.trim());
   if (!msg) return;
   if (input) input.value = '';
+  // 无论当前在哪个页面（消费分析 / 溯源弹窗等）点「取消」「规划」等动作，
+  // 这类请求本质是发给助手的对话，结果（含授权确认卡片）都落在聊天里。
+  // 主动切回对话页，否则卡片生成在聊天中却看不到，像「点了没反应」。
+  S.tab = 'home';
   S.chat.push({ role: 'user', text: msg });
   const bubble = { role: 'bot', text: '', streaming: true };
   S.chat.push(bubble);
@@ -937,6 +941,7 @@ async function streamChat(msg, bubble) {
     planning: result.planning || null };
 }
 async function confirmApproval(id, needSms, tamper) {
+  needSms = needSms === true || needSms === 'true'; // data-arg2 是字符串，"false" 也 truthy，须归一
   const body = {};
   const idx = S.chat.findIndex(m => m.approval && m.approval.id === id);
   const ap = idx >= 0 ? S.chat[idx].approval : null;
@@ -1225,7 +1230,7 @@ function planFormHtml() {
     </div>
     <div id="fpDestWrap" style="${goal ? 'display:none' : ''}">
       <div style="font-size:13px;color:var(--text-3);margin-bottom:6px">目的地</div>
-      <input id="fp-dest" class="pf-input" placeholder="例如：日本" value="${esc(f.dest || '')}">
+      <input id="fp-dest" class="pf-input" placeholder="例如：云南" value="${esc(f.dest || '')}">
     </div>
     <div id="fpGoalWrap" style="${goal ? '' : 'display:none'}">
       <div style="font-size:13px;color:var(--text-3);margin-bottom:6px">目标</div>
@@ -1621,6 +1626,7 @@ async function directTransfer() {
   showApprovalModal(r.approval);
 }
 async function confirmModal(id, needSms) {
+  needSms = needSms === true || needSms === 'true';
   const body = needSms ? { payPassword: $('#mp-pass').value, smsCode: $('#mp-sms').value } : {};
   if (needSms && (!body.payPassword || !body.smsCode)) return toast('请输入支付密码和短信验证码', 'err');
   const r = await api('/api/approvals/' + id + '/confirm', 'POST', body);
