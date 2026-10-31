@@ -508,6 +508,9 @@ function renderPlanningCard(m) {
         <b>订阅只占小头，不是瓶颈</b><div class="muted" style="margin-top:2px">你的订阅每月 ¥${yuan(ss.monthlyCents)}，占本目标约 ${subPct}%——砍光也解决不了这个目标。</div></div>`)
     : '';
 
+  const infeasible = p.feasibility === 'infeasible';
+  const planCancelled = !!p._cancelled;
+
   return `<div class="msg bot"><div class="ag-card">
     <div class="ag-head"><span class="eyebrow">消费规划诊断</span><span class="sig"><i></i>只读</span></div>
     <div style="white-space:pre-wrap">${esc(m.text)}</div>
@@ -521,9 +524,60 @@ function renderPlanningCard(m) {
     ${structRows}
     ${levers.length ? `<div style="font-size:13px;color:var(--muted);margin:14px 0 6px">能改变结论的杠杆（按效力排序）</div>${leverRows}` : ''}
     ${subNote}
-    ${p.targetAmount ? `<div style="margin-top:12px;display:flex;gap:8px"><button class="btn btn-primary btn-sm" data-act="executePlan">开始执行</button><span class="muted" style="font-size:12px;align-self:center">落地为可执行计划，资金步骤仍逐项授权</span></div>` : ''}
+    ${planCancelled
+      ? `<div style="margin-top:12px;display:flex;gap:8px;align-items:center"><span class="pill" style="color:var(--muted);border:1px solid var(--border);padding:5px 12px">已取消本次规划</span></div>`
+      : (p.targetAmount
+        ? `<div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <button class="btn ${infeasible ? 'btn-danger' : 'btn-primary'} btn-sm" data-act="executePlan" data-arg="${infeasible ? '1' : '0'}">${infeasible ? '⚠️ 强行执行' : '开始执行'}</button>
+            <button class="btn btn-outline btn-sm" data-act="cancelPlan">取消</button>
+            <span class="muted" style="font-size:12px;align-self:center">${infeasible ? '诊断为不可行，仍可强行执行（会再确认一次）' : '落地为可执行计划，资金步骤仍逐项授权'}</span>
+          </div>`
+        : '')}
     ${m.ref ? `<div style="margin-top:10px"><span class="evi">AUDIT #${esc(String(m.ref).slice(0, 8))}</span></div>` : ''}
   </div></div>`;
+}
+
+// 通用二次确认弹窗：用于「不可行规划强行执行」等需本人再确认一次的场景
+function confirmDialog({ title, body, okText = '继续', tone = 'primary', onOk }) {
+  const old = document.querySelector('.modal-mask'); if (old) old.remove();
+  const mask = document.createElement('div'); mask.className = 'modal-mask';
+  mask.innerHTML = `<div class="modal" style="max-width:440px">
+    <h3>${esc(title || '请确认')}</h3>
+    <div class="muted" style="margin:8px 0 18px;white-space:pre-wrap;line-height:1.6">${esc(body || '')}</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-outline" data-act="closeModal">再想想</button>
+      <button class="btn btn-${tone === 'danger' ? 'danger' : 'primary'}" id="cfm-ok">${esc(okText)}</button>
+    </div>
+  </div>`;
+  mask.addEventListener('click', e => { if (e.target === mask || e.target.dataset.act === 'closeModal') mask.remove(); });
+  document.body.appendChild(mask);
+  mask.querySelector('#cfm-ok').addEventListener('click', () => { mask.remove(); onOk && onOk(); });
+}
+
+// 诊断卡「开始执行 / 强行执行」：不可行时点击先二次确认，确认后再执行
+function executePlan(el) {
+  // 按钮自带的 data-arg 是该卡片的权威可行性标记（'1'=不可行）；缺省时回退到最近一张诊断卡
+  const hasArg = el && el.dataset && el.dataset.arg !== undefined && el.dataset.arg !== '';
+  const pm = [...S.chat].reverse().find(m => m.planning && !m.planning.insufficient && m.planning.feasibility);
+  const infeasible = hasArg ? el.dataset.arg === '1' : !!(pm && pm.planning.feasibility === 'infeasible');
+  if (infeasible) {
+    confirmDialog({
+      title: '⚠️ 该规划被诊断为「不可行」',
+      body: '按当前收支测算，这个目标存在资金缺口。强行执行仍会生成计划，但可能在执行（锁资/扣款）环节失败，或需要你额外补足资金。确定要强行执行吗？',
+      okText: '仍然强行执行',
+      tone: 'danger',
+      onOk: () => sendChat('开始执行这个规划')
+    });
+    return;
+  }
+  sendChat('开始执行这个规划');
+}
+
+// 诊断卡「取消」：本次仅为诊断、尚未执行，本地取消即可（不清动任何已执行计划）
+function cancelPlan() {
+  const pm = [...S.chat].reverse().find(m => m.planning && !m.planning.insufficient && m.planning.feasibility && !m.planning._cancelled);
+  if (pm) { pm.planning._cancelled = true; render(); }
+  toast('已取消本次规划', 'ok');
 }
 
 // ================= A6 计划进度卡 =================
@@ -1151,9 +1205,11 @@ function renderFeatPlanBody(plans) {
   const list = arr.filter(p => p.status !== 'reverted').slice(0, 5);
   let flow;
   if (fp.step === 'diag') {
+    const infeasible = fp.planning && fp.planning.feasibility === 'infeasible';
     flow = planDiagInline(fp.planning) + `<div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <button class="btn btn-primary btn-sm" data-act="execPlanInline">开始执行</button>
-      <span class="muted" style="font-size:12px">落地为可执行计划，资金步骤仍逐项授权</span></div>`;
+      <button class="btn ${infeasible ? 'btn-danger' : 'btn-primary'} btn-sm" data-act="execPlanInline">${infeasible ? '⚠️ 强行执行' : '开始执行'}</button>
+      <button class="btn btn-outline btn-sm" data-act="cancelPlanInline">取消</button>
+      <span class="muted" style="font-size:12px">${infeasible ? '诊断为不可行，仍可强行执行（会再确认一次）' : '落地为可执行计划，资金步骤仍逐项授权'}</span></div>`;
   } else if (fp.step === 'approval') {
     flow = renderApprovalCard({ approval: fp.approval });
   } else if (fp.step === 'done') {
@@ -1303,10 +1359,30 @@ async function createPlanInline() {
 }
 
 async function execPlanInline() {
+  const infeasible = S.featPlan && S.featPlan.planning && S.featPlan.planning.feasibility === 'infeasible';
+  if (infeasible) {
+    return confirmDialog({
+      title: '⚠️ 该规划被诊断为「不可行」',
+      body: '按当前收支测算，这个目标存在资金缺口。强行执行仍会生成计划，但可能在执行（锁资/扣款）环节失败，或需要你额外补足资金。确定要强行执行吗？',
+      okText: '仍然强行执行',
+      tone: 'danger',
+      onOk: doExecPlanInline
+    });
+  }
+  doExecPlanInline();
+}
+
+async function doExecPlanInline() {
   const r = await api('/api/agent/chat', 'POST', { message: '开始执行这个规划' });
   if (!r.ok) return toast(r.message, 'err');
   if (!r.approval) { if (r.planning) S.featPlan.planning = r.planning; S.featPlan.step = 'diag'; return render(); }
   S.featPlan.step = 'approval'; S.featPlan.approval = r.approval;
+  render();
+}
+
+function cancelPlanInline() {
+  S.featPlan = { step: 'form', planning: null, approval: null, plan: null, form: (S.featPlan && S.featPlan.form) || {} };
+  toast('已取消本次规划', 'ok');
   render();
 }
 
@@ -2528,7 +2604,9 @@ const ACTIONS = {
   keepHike: () => toast('已保留该订阅，需要处理时随时说「取消订阅」即可', 'ok'),
   reportHikeSub: (el, a) => sendChat('申诉 ' + a + ' 涨价差价'),
   undoPlan: (el) => sendChat('撤销计划 ' + (el.dataset.arg || '生日惊喜')),
-  executePlan: () => sendChat('开始执行这个规划'),
+  executePlan: el => executePlan(el),
+  cancelPlan: () => cancelPlan(),
+  cancelPlanInline: () => cancelPlanInline(),
   lockBudget: (el, a, a2) => requestOps('escrow.hold', { planId: a, amount: String((Number(a2) || 20000) / 100) }),
   clockAdvance: (el, a) => advanceClock(Number(a) || 10, false),
   clockReset: () => advanceClock(0, true),
