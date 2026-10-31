@@ -4,6 +4,7 @@
 
 - 🌐 线上演示：https://agent-bank-secure.app.workbuddy.host/
 - 📦 GitHub：https://github.com/zhangjieming11-sketch/aibanking
+- 📘 部署说明：[`docs/提交材料/部署说明.md`](docs/提交材料/部署说明.md)
 
 ## 运行
 
@@ -94,7 +95,7 @@ node tests/check_frontend_contract.js  # 前端契约：24/24（卡片字段接�
 - 攻击用例集：`tests/attacks.md`（6 类 70 条中文注入，附 25 条正常样本防误伤）。
 - 门禁纪律：每个阶段合并前回归必须**原样全绿**；只允许新增用例，不允许放宽已有断言。
 
-> 📖 完整技术细节与五道安全防线说明见 [`docs/提交材料/技术方案文档.md`](docs/提交材料/技术方案文档.md)；权限分级与已知风险清单见 [`docs/提交材料/安全自评报告.md`](docs/提交材料/安全自评报告.md)；R2 订阅/消费规划增强见 [`docs/提交材料/订阅管理增强_R2.md`](docs/提交材料/订阅管理增强_R2.md)。
+> 📖 完整技术细节与五道安全防线说明见 [`docs/提交材料/技术方案文档.md`](docs/提交材料/技术方案文档.md)；权限分级与已知风险清单见 [`docs/提交材料/安全自评报告.md`](docs/提交材料/安全自评报告.md)；R2 订阅/消费规划增强见 [`docs/制作方案_订阅管理与消费规划_R2.md`](docs/制作方案_订阅管理与消费规划_R2.md)。
 
 ## 演示脚本（建议 5 分钟）
 
